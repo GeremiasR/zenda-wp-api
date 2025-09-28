@@ -4,6 +4,7 @@ import helmet from "helmet";
 import config from "./config";
 import routes from "./routes";
 import { logger } from "./middlewares/logger.middleware";
+import { whatsappService } from "./services/whatsapp.service";
 
 // Crear instancia de Express
 const app = express();
@@ -33,10 +34,20 @@ app.use((req, res) => {
 
 // Iniciar servidor
 const PORT = config.server.port;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(
     `Servidor iniciado en el puerto ${PORT} en modo ${config.server.nodeEnv}`
   );
+
+  // Inicializar WhatsApp automáticamente en desarrollo
+  if (config.server.nodeEnv === "development") {
+    try {
+      console.log("Iniciando conexión con WhatsApp...");
+      await whatsappService.connect();
+    } catch (error) {
+      console.error("Error al inicializar WhatsApp:", error);
+    }
+  }
 });
 
 // Manejo de errores no capturados

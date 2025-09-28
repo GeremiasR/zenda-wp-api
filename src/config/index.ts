@@ -13,9 +13,11 @@ const config = {
 
   // Configuración de WhatsApp
   whatsapp: {
-    apiToken: process.env.WHATSAPP_API_TOKEN || "",
-    apiUrl: process.env.WHATSAPP_API_URL || "",
-    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "",
+    sessionName: process.env.WHATSAPP_SESSION_NAME || "zenda-session",
+    maxReconnectAttempts: parseInt(
+      process.env.WHATSAPP_MAX_RECONNECT_ATTEMPTS || "5"
+    ),
+    reconnectDelay: parseInt(process.env.WHATSAPP_RECONNECT_DELAY || "5000"),
   },
 
   // Configuración de seguridad

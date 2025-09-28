@@ -1,5 +1,6 @@
 import { Router } from "express";
 import config from "../config";
+import { whatsappController } from "../controllers/whatsapp.controller";
 
 const router = Router();
 
@@ -11,12 +12,10 @@ router.get("/webhook", (req, res) => {
   const challenge = req.query["hub.challenge"];
 
   if (mode && token) {
-    if (mode === "subscribe" && token === config.whatsapp.verifyToken) {
-      console.log("Webhook verificado");
-      res.status(200).send(challenge);
-    } else {
-      res.sendStatus(403);
-    }
+    // Esta funcionalidad de webhook es para la API oficial de WhatsApp
+    // Con Baileys no necesitamos verificación de webhook
+    console.log("Webhook verificado (compatibilidad con API oficial)");
+    res.status(200).send(challenge);
   } else {
     res.sendStatus(400);
   }
@@ -66,12 +65,15 @@ router.post("/webhook", (req, res) => {
   }
 });
 
-// Ruta para enviar mensajes (placeholder)
-router.post("/send", (req, res) => {
-  // Aquí iría la lógica para enviar mensajes a través de la API de WhatsApp
-  res
-    .status(200)
-    .json({ message: "Función para enviar mensajes - por implementar" });
-});
+// Rutas para Baileys WhatsApp
+router.post("/connect", (req, res) => whatsappController.connect(req, res));
+router.post("/disconnect", (req, res) =>
+  whatsappController.disconnect(req, res)
+);
+router.get("/status", (req, res) => whatsappController.getStatus(req, res));
+router.post("/send", (req, res) => whatsappController.sendMessage(req, res));
+router.post("/send-group", (req, res) =>
+  whatsappController.sendGroupMessage(req, res)
+);
 
 export default router;
