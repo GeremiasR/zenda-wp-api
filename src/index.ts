@@ -5,6 +5,7 @@ import config from "./config";
 import routes from "./routes";
 import { logger } from "./middlewares/logger.middleware";
 import { whatsappService } from "./services/whatsapp.service";
+import { databaseService } from "./services/database.service";
 
 // Crear instancia de Express
 const app = express();
@@ -39,14 +40,24 @@ app.listen(PORT, async () => {
     `Servidor iniciado en el puerto ${PORT} en modo ${config.server.nodeEnv}`
   );
 
-  // Inicializar WhatsApp automáticamente en desarrollo
-  if (config.server.nodeEnv === "development") {
-    try {
-      console.log("Iniciando conexión con WhatsApp...");
-      await whatsappService.connect();
-    } catch (error) {
-      console.error("Error al inicializar WhatsApp:", error);
+  try {
+    // Conectar a MongoDB
+    console.log("Conectando a MongoDB...");
+    await databaseService.connect();
+    console.log("MongoDB conectado exitosamente");
+
+    // Inicializar WhatsApp automáticamente en desarrollo
+    if (config.server.nodeEnv === "development") {
+      try {
+        console.log("Iniciando conexión con WhatsApp...");
+        await whatsappService.connect();
+      } catch (error) {
+        console.error("Error al inicializar WhatsApp:", error);
+      }
     }
+  } catch (error) {
+    console.error("Error al inicializar servicios:", error);
+    process.exit(1);
   }
 });
 

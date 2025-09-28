@@ -25,6 +25,12 @@ const config = {
     jwtSecret: process.env.JWT_SECRET || "default_secret",
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1d",
   },
+
+  // Configuración de MongoDB
+  database: {
+    uri: process.env.MONGODB_URI || "mongodb://localhost:27017/zenda-mvp",
+    database: process.env.MONGODB_DATABASE || "zenda-mvp",
+  },
 };
 
 export default config;
