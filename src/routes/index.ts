@@ -1,5 +1,7 @@
 import { Router } from "express";
 import whatsappRoutes from "./whatsapp.routes";
+import flowRoutes from "./flow.routes";
+import authRoutes from "./auth.routes";
 
 const router = Router();
 
@@ -11,6 +13,8 @@ router.get("/health", (req, res) => {
 });
 
 // Rutas principales
+router.use("/auth", authRoutes);
 router.use("/whatsapp", whatsappRoutes);
+router.use("/flows", flowRoutes);
 
 export default router;

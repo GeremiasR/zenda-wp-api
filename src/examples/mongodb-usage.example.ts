@@ -1,187 +1,187 @@
-/**
- * Ejemplos de uso de MongoDB en la aplicación Zenda WhatsApp API
- * 
- * Este archivo muestra cómo usar los modelos y servicios de MongoDB
- * que se han configurado en el proyecto.
- */
+// /**
+//  * Ejemplos de uso de MongoDB en la aplicación Zenda WhatsApp API
+//  *
+//  * Este archivo muestra cómo usar los modelos y servicios de MongoDB
+//  * que se han configurado en el proyecto.
+//  */
 
-import { WhatsAppSession } from '../models';
-import { databaseService } from '../services/database.service';
-import { handleDatabaseError } from '../utils/database.utils';
+// import { WhatsAppSession } from '../models';
+// import { databaseService } from '../services/database.service';
+// import { handleDatabaseError } from '../utils/database.utils';
 
-/**
- * Ejemplo de cómo crear y guardar una sesión de WhatsApp
- */
-export async function createWhatsAppSession() {
-  try {
-    // Verificar que la base de datos esté conectada
-    if (!databaseService.getConnectionStatus()) {
-      throw new Error('Base de datos no conectada');
-    }
+// /**
+//  * Ejemplo de cómo crear y guardar una sesión de WhatsApp
+//  */
+// export async function createWhatsAppSession() {
+//   try {
+//     // Verificar que la base de datos esté conectada
+//     if (!databaseService.getConnectionStatus()) {
+//       throw new Error('Base de datos no conectada');
+//     }
 
-    // Crear una nueva sesión
-    const session = new WhatsAppSession({
-      sessionId: 'session-' + Date.now(),
-      phoneNumber: '+1234567890',
-      isConnected: true,
-      qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...', // QR code base64
-    });
+//     // Crear una nueva sesión
+//     const session = new WhatsAppSession({
+//       sessionId: 'session-' + Date.now(),
+//       phoneNumber: '+1234567890',
+//       isConnected: true,
+//       qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...', // QR code base64
+//     });
 
-    // Guardar en la base de datos
-    const savedSession = await session.save();
-    console.log('Sesión creada:', savedSession);
+//     // Guardar en la base de datos
+//     const savedSession = await session.save();
+//     console.log('Sesión creada:', savedSession);
 
-    return savedSession;
-  } catch (error) {
-    console.error('Error al crear sesión:', handleDatabaseError(error));
-    throw error;
-  }
-}
+//     return savedSession;
+//   } catch (error) {
+//     console.error('Error al crear sesión:', handleDatabaseError(error));
+//     throw error;
+//   }
+// }
 
-/**
- * Ejemplo de cómo buscar sesiones activas
- */
-export async function getActiveSessions() {
-  try {
-    const activeSessions = await WhatsAppSession.findActiveSessions();
-    console.log('Sesiones activas:', activeSessions);
-    return activeSessions;
-  } catch (error) {
-    console.error('Error al buscar sesiones activas:', handleDatabaseError(error));
-    throw error;
-  }
-}
+// /**
+//  * Ejemplo de cómo buscar sesiones activas
+//  */
+// export async function getActiveSessions() {
+//   try {
+//     const activeSessions = await WhatsAppSession.findActiveSessions();
+//     console.log('Sesiones activas:', activeSessions);
+//     return activeSessions;
+//   } catch (error) {
+//     console.error('Error al buscar sesiones activas:', handleDatabaseError(error));
+//     throw error;
+//   }
+// }
 
-/**
- * Ejemplo de cómo actualizar una sesión
- */
-export async function updateSession(sessionId: string, updateData: any) {
-  try {
-    const session = await WhatsAppSession.findOneAndUpdate(
-      { sessionId },
-      updateData,
-      { new: true, runValidators: true }
-    );
+// /**
+//  * Ejemplo de cómo actualizar una sesión
+//  */
+// export async function updateSession(sessionId: string, updateData: any) {
+//   try {
+//     const session = await WhatsAppSession.findOneAndUpdate(
+//       { sessionId },
+//       updateData,
+//       { new: true, runValidators: true }
+//     );
 
-    if (!session) {
-      throw new Error('Sesión no encontrada');
-    }
+//     if (!session) {
+//       throw new Error('Sesión no encontrada');
+//     }
 
-    console.log('Sesión actualizada:', session);
-    return session;
-  } catch (error) {
-    console.error('Error al actualizar sesión:', handleDatabaseError(error));
-    throw error;
-  }
-}
+//     console.log('Sesión actualizada:', session);
+//     return session;
+//   } catch (error) {
+//     console.error('Error al actualizar sesión:', handleDatabaseError(error));
+//     throw error;
+//   }
+// }
 
-/**
- * Ejemplo de cómo eliminar una sesión
- */
-export async function deleteSession(sessionId: string) {
-  try {
-    const session = await WhatsAppSession.findOneAndDelete({ sessionId });
+// /**
+//  * Ejemplo de cómo eliminar una sesión
+//  */
+// export async function deleteSession(sessionId: string) {
+//   try {
+//     const session = await WhatsAppSession.findOneAndDelete({ sessionId });
 
-    if (!session) {
-      throw new Error('Sesión no encontrada');
-    }
+//     if (!session) {
+//       throw new Error('Sesión no encontrada');
+//     }
 
-    console.log('Sesión eliminada:', session);
-    return session;
-  } catch (error) {
-    console.error('Error al eliminar sesión:', handleDatabaseError(error));
-    throw error;
-  }
-}
+//     console.log('Sesión eliminada:', session);
+//     return session;
+//   } catch (error) {
+//     console.error('Error al eliminar sesión:', handleDatabaseError(error));
+//     throw error;
+//   }
+// }
 
-/**
- * Ejemplo de cómo limpiar sesiones inactivas
- */
-export async function cleanInactiveSessions() {
-  try {
-    const result = await WhatsAppSession.cleanInactiveSessions();
-    console.log('Sesiones inactivas limpiadas:', result);
-    return result;
-  } catch (error) {
-    console.error('Error al limpiar sesiones inactivas:', handleDatabaseError(error));
-    throw error;
-  }
-}
+// /**
+//  * Ejemplo de cómo limpiar sesiones inactivas
+//  */
+// export async function cleanInactiveSessions() {
+//   try {
+//     const result = await WhatsAppSession.cleanInactiveSessions();
+//     console.log('Sesiones inactivas limpiadas:', result);
+//     return result;
+//   } catch (error) {
+//     console.error('Error al limpiar sesiones inactivas:', handleDatabaseError(error));
+//     throw error;
+//   }
+// }
 
-/**
- * Ejemplo de cómo buscar una sesión por número de teléfono
- */
-export async function findSessionByPhone(phoneNumber: string) {
-  try {
-    const session = await WhatsAppSession.findOne({ phoneNumber });
-    
-    if (!session) {
-      console.log('No se encontró sesión para el número:', phoneNumber);
-      return null;
-    }
+// /**
+//  * Ejemplo de cómo buscar una sesión por número de teléfono
+//  */
+// export async function findSessionByPhone(phoneNumber: string) {
+//   try {
+//     const session = await WhatsAppSession.findOne({ phoneNumber });
 
-    console.log('Sesión encontrada:', session);
-    return session;
-  } catch (error) {
-    console.error('Error al buscar sesión por teléfono:', handleDatabaseError(error));
-    throw error;
-  }
-}
+//     if (!session) {
+//       console.log('No se encontró sesión para el número:', phoneNumber);
+//       return null;
+//     }
 
-/**
- * Ejemplo de cómo obtener estadísticas de sesiones
- */
-export async function getSessionStats() {
-  try {
-    const totalSessions = await WhatsAppSession.countDocuments();
-    const activeSessions = await WhatsAppSession.countDocuments({ isConnected: true });
-    const inactiveSessions = totalSessions - activeSessions;
+//     console.log('Sesión encontrada:', session);
+//     return session;
+//   } catch (error) {
+//     console.error('Error al buscar sesión por teléfono:', handleDatabaseError(error));
+//     throw error;
+//   }
+// }
 
-    const stats = {
-      total: totalSessions,
-      active: activeSessions,
-      inactive: inactiveSessions,
-      activePercentage: totalSessions > 0 ? (activeSessions / totalSessions) * 100 : 0
-    };
+// /**
+//  * Ejemplo de cómo obtener estadísticas de sesiones
+//  */
+// export async function getSessionStats() {
+//   try {
+//     const totalSessions = await WhatsAppSession.countDocuments();
+//     const activeSessions = await WhatsAppSession.countDocuments({ isConnected: true });
+//     const inactiveSessions = totalSessions - activeSessions;
 
-    console.log('Estadísticas de sesiones:', stats);
-    return stats;
-  } catch (error) {
-    console.error('Error al obtener estadísticas:', handleDatabaseError(error));
-    throw error;
-  }
-}
+//     const stats = {
+//       total: totalSessions,
+//       active: activeSessions,
+//       inactive: inactiveSessions,
+//       activePercentage: totalSessions > 0 ? (activeSessions / totalSessions) * 100 : 0
+//     };
 
-/**
- * Ejemplo de uso completo
- */
-export async function exampleUsage() {
-  try {
-    console.log('=== Ejemplo de uso de MongoDB ===');
+//     console.log('Estadísticas de sesiones:', stats);
+//     return stats;
+//   } catch (error) {
+//     console.error('Error al obtener estadísticas:', handleDatabaseError(error));
+//     throw error;
+//   }
+// }
 
-    // Crear una sesión
-    const session = await createWhatsAppSession();
+// /**
+//  * Ejemplo de uso completo
+//  */
+// export async function exampleUsage() {
+//   try {
+//     console.log('=== Ejemplo de uso de MongoDB ===');
 
-    // Buscar sesiones activas
-    await getActiveSessions();
+//     // Crear una sesión
+//     const session = await createWhatsAppSession();
 
-    // Actualizar la sesión
-    await updateSession(session.sessionId, { 
-      lastSeen: new Date(),
-      connectionData: { version: '1.0.0' }
-    });
+//     // Buscar sesiones activas
+//     await getActiveSessions();
 
-    // Obtener estadísticas
-    await getSessionStats();
+//     // Actualizar la sesión
+//     await updateSession(session.sessionId, {
+//       lastSeen: new Date(),
+//       connectionData: { version: '1.0.0' }
+//     });
 
-    // Buscar por teléfono
-    await findSessionByPhone(session.phoneNumber);
+//     // Obtener estadísticas
+//     await getSessionStats();
 
-    // Limpiar sesiones inactivas
-    await cleanInactiveSessions();
+//     // Buscar por teléfono
+//     await findSessionByPhone(session.phoneNumber);
 
-    console.log('=== Ejemplo completado ===');
-  } catch (error) {
-    console.error('Error en el ejemplo:', error);
-  }
-}
+//     // Limpiar sesiones inactivas
+//     await cleanInactiveSessions();
+
+//     console.log('=== Ejemplo completado ===');
+//   } catch (error) {
+//     console.error('Error en el ejemplo:', error);
+//   }
+// }

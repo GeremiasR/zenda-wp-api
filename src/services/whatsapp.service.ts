@@ -11,6 +11,7 @@ import pino from "pino";
 import qrcode from "qrcode-terminal";
 import path from "path";
 import fs from "fs";
+import { flowService } from "./flow.service";
 
 export class WhatsAppService {
   private sock: WASocket | null = null;
@@ -113,16 +114,47 @@ export class WhatsAppService {
         msg.message?.extendedTextMessage?.text ||
         "";
 
-      if (messageText) {
-        console.log(`Mensaje recibido de ${msg.key.remoteJid}: ${messageText}`);
+      if (!messageText || !msg.key.remoteJid) return;
 
-        // Respuesta automática básica
-        const response = `Hola! Recibí tu mensaje: "${messageText}". ¿En qué puedo ayudarte?`;
-        await this.sendMessage(msg.key.remoteJid!, response);
+      // Normalizar los números de teléfono
+      const fromNumber = this.normalizePhoneNumber(msg.key.remoteJid);
+      // En el caso de WhatsApp, el "to" es nuestro propio número
+      const toNumber = this.normalizePhoneNumber(this.sock?.user?.id || "");
+
+      console.log(
+        `Mensaje recibido de ${fromNumber} para ${toNumber}: ${messageText}`
+      );
+
+      // Procesar el mensaje a través del motor de flujos
+      const { response } = await flowService.processMessage(
+        fromNumber,
+        toNumber,
+        messageText
+      );
+
+      // Enviar la respuesta generada por el motor de flujos
+      if (response) {
+        await this.sendMessage(msg.key.remoteJid, response);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al manejar mensaje:", error);
     }
+  }
+
+  /**
+   * Normaliza un número de teléfono de WhatsApp eliminando el sufijo @s.whatsapp.net
+   * y otros caracteres no necesarios
+   */
+  private normalizePhoneNumber(jid?: string): string {
+    if (!jid) return "";
+
+    // Remover el sufijo @s.whatsapp.net o @g.us para grupos
+    let normalized = jid.split("@")[0];
+
+    // Si termina en .us o similar, también removerlo
+    normalized = normalized.split(".")[0];
+
+    return normalized;
   }
 
   public async sendMessage(jid: string, message: string): Promise<void> {
@@ -133,7 +165,7 @@ export class WhatsAppService {
     try {
       await this.sock.sendMessage(jid, { text: message });
       console.log(`Mensaje enviado a ${jid}: ${message}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al enviar mensaje:", error);
       throw error;
     }
@@ -150,7 +182,7 @@ export class WhatsAppService {
     try {
       await this.sock.sendMessage(groupJid, { text: message });
       console.log(`Mensaje enviado al grupo ${groupJid}: ${message}`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al enviar mensaje al grupo:", error);
       throw error;
     }
@@ -172,10 +204,15 @@ export class WhatsAppService {
 
   public async disconnect(): Promise<void> {
     if (this.sock) {
-      await this.sock.logout();
-      this.sock = null;
-      this.isConnected = false;
-      console.log("Desconectado de WhatsApp");
+      try {
+        await this.sock.logout();
+        this.sock = null;
+        this.isConnected = false;
+        console.log("Desconectado de WhatsApp");
+      } catch (error: unknown) {
+        console.error("Error al desconectar de WhatsApp:", error);
+        throw error;
+      }
     }
   }
 

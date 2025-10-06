@@ -1,5 +1,4 @@
 import { Router } from "express";
-import config from "../config";
 import { whatsappController } from "../controllers/whatsapp.controller";
 
 const router = Router();

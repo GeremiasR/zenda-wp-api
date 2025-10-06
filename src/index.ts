@@ -4,8 +4,12 @@ import helmet from "helmet";
 import config from "./config";
 import routes from "./routes";
 import { logger } from "./middlewares/logger.middleware";
+import { errorHandler, notFoundHandler } from "./middlewares/error.middleware";
+import { setupSwagger } from "./middlewares/swagger.middleware";
 import { whatsappService } from "./services/whatsapp.service";
 import { databaseService } from "./services/database.service";
+import { initializeRoles } from "./utils/init-roles";
+import { createDefaultAdmin } from "./utils/create-admin-user";
 
 // Crear instancia de Express
 const app = express();
@@ -16,6 +20,9 @@ app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(logger);
+
+// Configurar Swagger UI
+setupSwagger(app);
 
 // Configurar rutas
 app.use("/api", routes);
@@ -29,9 +36,10 @@ app.get("/", (req, res) => {
 });
 
 // Manejo de rutas no encontradas
-app.use((req, res) => {
-  res.status(404).json({ message: "Ruta no encontrada" });
-});
+app.use(notFoundHandler);
+
+// Manejo de errores (debe ir al final)
+app.use(errorHandler);
 
 // Iniciar servidor
 const PORT = config.server.port;
@@ -45,6 +53,22 @@ app.listen(PORT, async () => {
     console.log("Conectando a MongoDB...");
     await databaseService.connect();
     console.log("MongoDB conectado exitosamente");
+
+    // Inicializar roles por defecto
+    console.log("Inicializando roles por defecto...");
+    await initializeRoles();
+
+    // Crear usuario administrador por defecto (solo en desarrollo)
+    if (config.server.nodeEnv === "development") {
+      try {
+        await createDefaultAdmin();
+      } catch (error) {
+        console.log(
+          "Usuario administrador ya existe o error al crearlo:",
+          error
+        );
+      }
+    }
 
     // Inicializar WhatsApp automáticamente en desarrollo
     if (config.server.nodeEnv === "development") {

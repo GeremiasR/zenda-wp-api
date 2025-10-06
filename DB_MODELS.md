@@ -1,32 +1,63 @@
-MVP
+User:
+-id
+-username
+-email
+-shopId
+-password
+-roleCode
+-isActive
+-createdAt
+-updatedAt
+
+Role:
+-id
+-isActive
+-code // "ADMIN", "SHOPADMIN", "SHOPBOUSER", "CUSTOMER"
+-label // "Administrador", "Shop Admin", etc
 
 Shop:
-id: GUID
-name: string
-logo: string //can be null
+-id
+-name
+-isActive
+-internalName
 
-flow:
-id: GUID
-name: string
-assignedNumber: string
-description: string
-shopId: string
-createdAt: datetime
-updatedAt: datetime
-active: boolean
-deleted: boolean
-initialState: "menu",
-states: {
-    "menu": {
-      "message": "Bienvenida/o 👋, elige una opción:\n1) Solicitar turno\n2) Alquilar máquina\n3) Servicios\n4) Productos\n5) Contacto",
-      "options": [
-        { "input": ["1", "turno", "reserva"], "event": "TURNO", "next": "solicitar_turno" },
-        { "input": ["2", "maquina", "alquilar"], "event": "MAQUINA", "next": "alquilar_maquina" },
-        { "input": ["3", "servicio"], "event": "SERVICIOS", "next": "servicios" },
-        { "input": ["4", "producto"], "event": "PRODUCTOS", "next": "productos" },
-        { "input": ["5", "contacto"], "event": "CONTACTO", "next": "contacto" }
-      ]
-    },
+MessageSession:
+-id
+-shopId
+-from
+-to
+-flowId
+-currentState //del flow
+
+Flow:
+-id
+-name
+-description
+-phoneNumber
+-shopId
+-createdAt
+-updatedAt
+-isActive
+-isDeleted
+-initialState
+-states
+
+Ejemplo de initialState y states
+
+{
+....other properties,
+"initialState": "menu",
+"states": {
+"menu": {
+"message": "Bienvenida/o 👋, elige una opción:\n1) Solicitar turno\n2) Alquilar máquina\n3) Servicios\n4) Productos\n5) Contacto",
+"options": [
+{ "input": ["1", "turno", "reserva"], "event": "TURNO", "next": "solicitar_turno" },
+{ "input": ["2", "maquina", "alquilar"], "event": "MAQUINA", "next": "alquilar_maquina" },
+{ "input": ["3", "servicio"], "event": "SERVICIOS", "next": "servicios" },
+{ "input": ["4", "producto"], "event": "PRODUCTOS", "next": "productos" },
+{ "input": ["5", "contacto"], "event": "CONTACTO", "next": "contacto" }
+]
+},
 
     "solicitar_turno": {
       "message": "📅 ¿Qué día te gustaría reservar el turno?",
@@ -108,19 +139,6 @@ states: {
       "message": "Un asesor se pondrá en contacto contigo en breve 🙋‍♀️",
       "options": [{ "input": ["menu"], "event": "BACK", "next": "menu" }]
     }
+
 }
-
-
-🔑 Características de este flow
-Menú principal con 5 opciones.
-Cada opción abre un subflujo (ej: reservar turno, alquilar máquina).
-Cada estado tiene un message y un set de options con:
-input → palabras/valores que disparan el evento.
-event → nombre semántico del evento.
-next → próximo estado.
-
-Siempre se puede volver al menú con "back" o "menu".
-
-Es editable desde un dashboard: solo cambias JSON en DB, sin redeploy.
-
-
+}
