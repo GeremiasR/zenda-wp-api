@@ -10,7 +10,12 @@ Esta carpeta contiene toda la documentación de la API de Zenda WhatsApp, incluy
 docs/
 ├── README.md                    # Este archivo
 ├── swagger.config.ts           # Configuración principal de Swagger
+├── swagger-dev.md              # Guía de desarrollo con Swagger
+├── ADMIN_API.md                # Documentación específica del módulo Admin
+├── generate-docs.js            # Script para generar reportes de documentación
 └── routes/                     # Documentación específica de rutas
+    ├── admin.routes.ts         # Documentación de administración (tiendas/usuarios)
+    ├── admin-flows.routes.ts   # Documentación de administración (flujos)
     ├── auth.routes.ts          # Documentación de autenticación
     ├── whatsapp.routes.ts      # Documentación de WhatsApp
     ├── flow.routes.ts          # Documentación de flujos
@@ -19,181 +24,316 @@ docs/
 
 ## Cómo Acceder a la Documentación
 
-### 1. Interfaz Web de Swagger UI
+### 🌐 Swagger UI (Interfaz Interactiva)
 
-Una vez que el servidor esté ejecutándose, puedes acceder a la documentación interactiva en:
+Una vez que el servidor esté ejecutándose, puedes acceder a la interfaz de Swagger UI en:
 
-```
-http://localhost:3000/api-docs
-```
+**URL**: `http://localhost:3000/api-docs`
 
-### 2. JSON de Swagger
+### 📄 JSON de Swagger (Para Herramientas Externas)
 
-Para obtener el JSON completo de la documentación:
+Para obtener el JSON de Swagger que puedes importar en Postman u otras herramientas:
 
-```
-http://localhost:3000/api-docs.json
-```
+**URLs disponibles**:
+
+- `http://localhost:3000/api-docs.json` (estándar)
+- `http://localhost:3000/api-docs-json` (compatible con Postman)
+
+## Módulos de la API
+
+### 🔐 Autenticación (`/api/auth`)
+
+- **Login** con email y contraseña
+- **Refresh token** para renovar acceso
+- **Logout** individual y masivo
+- **Verificación** de tokens
+- **Perfil** del usuario autenticado
+
+### 📱 WhatsApp (`/api/whatsapp`)
+
+- **Gestión de sesiones** de WhatsApp
+- **Conexión/desconexión** de sesiones
+- **Códigos QR** para autenticación
+- **Estado** de conexión
+
+### 🔄 Flujos (`/api/flows`)
+
+- **Creación** de flujos conversacionales
+- **Gestión** de estados y transiciones
+- **Ejecución** de flujos
+- **Configuración** por tienda
+
+### 🔧 Administración (`/api/admin`)
+
+- **Gestión de tiendas** (CRUD completo)
+- **Gestión de usuarios** (CRUD completo)
+- **Gestión de flujos** (CRUD completo)
+- **Soft delete** para tiendas, usuarios y flujos
+- **Filtros y búsqueda** avanzada
+- **Paginación** en todas las listas
+
+### ❤️ Salud del Sistema (`/api/health`)
+
+- **Estado** de la API
+- **Conectividad** con MongoDB
+- **Métricas** básicas del sistema
 
 ## Características de la Documentación
 
-### ✅ Documentación Completa
+### ✨ Interfaz Swagger
 
-- **Autenticación**: Login, refresh, logout, perfil de usuario
-- **WhatsApp**: Conexión, desconexión, envío de mensajes, estado
-- **Flujos**: CRUD completo de flujos conversacionales
-- **Salud**: Monitoreo del sistema y métricas
+- **Diseño personalizado** para la marca Zenda
+- **Navegación intuitiva** con filtros por categorías
+- **Pruebas interactivas** de todos los endpoints
+- **Autenticación JWT** integrada
+- **Ejemplos de código** para cada endpoint
 
-### 🔒 Seguridad
+### 📊 Estadísticas Actuales
 
-- Documentación de autenticación JWT
-- Ejemplos de tokens y refresh tokens
-- Esquemas de seguridad para cada endpoint
+- **34 endpoints** completamente documentados
+- **6 módulos** de funcionalidad
+- **7 esquemas** reutilizables definidos
+- **5 categorías** de endpoints (Auth, WhatsApp, Flows, Admin, Health)
 
-### 📝 Ejemplos
+### 🛡️ Seguridad
 
-- Ejemplos de requests y responses
-- Diferentes escenarios de uso
-- Códigos de error detallados
+- **Autenticación JWT** requerida para endpoints protegidos
+- **Control de roles** (ADMIN, SHOPADMIN, SHOPUSER, CUSTOMER)
+- **Validación** de permisos por tienda
+- **Manejo de errores** estandarizado
 
-### 🎨 Interfaz Personalizada
+## Scripts Disponibles
 
-- Diseño personalizado para la marca Zenda
-- Navegación intuitiva
-- Filtros y búsqueda
+### 📈 Generar Reporte de Documentación
 
-## Cómo Agregar Nueva Documentación
+```bash
+npm run docs:generate
+```
 
-### 1. Para Nuevas Rutas
+Este script analiza todos los archivos de documentación y genera un reporte con:
 
-Crea un archivo en `docs/routes/` siguiendo el patrón:
+- Número de endpoints documentados por módulo
+- Estadísticas de cobertura
+- Archivos procesados
+- Promedio de documentación por archivo
+
+### 🚀 Iniciar Servidor con Documentación
+
+```bash
+npm run docs:serve
+# o simplemente
+npm run dev
+```
+
+## Cómo Usar la Documentación
+
+### 1. 🔍 Explorar Endpoints
+
+1. Ve a `http://localhost:3000/api-docs`
+2. Expande cualquier sección (Auth, WhatsApp, Flows, Admin, Health)
+3. Haz clic en un endpoint para ver detalles completos
+4. Usa "Try it out" para probar endpoints en tiempo real
+
+### 2. 🔐 Autenticación
+
+1. Primero haz login en `/auth/login`:
+   ```json
+   {
+     "email": "admin@zenda.com",
+     "password": "admin123"
+   }
+   ```
+2. Copia el `access_token` de la respuesta
+3. Haz clic en "Authorize" en la parte superior de Swagger UI
+4. Pega el token en el formato: `Bearer tu_token_aqui`
+5. Ahora puedes probar todos los endpoints protegidos
+
+### 3. 📝 Ejemplos de Uso
+
+#### Crear una nueva tienda (Admin)
+
+```json
+POST /api/admin/shops
+{
+  "name": "Mi Nueva Tienda",
+  "internalName": "mi-nueva-tienda",
+  "isActive": true
+}
+```
+
+#### Crear un flujo conversacional (Admin)
+
+```json
+POST /api/admin/flows
+{
+  "name": "Flujo de Bienvenida",
+  "description": "Flujo para nuevos usuarios",
+  "phoneNumber": "+1234567890",
+  "shopId": "64f8a1b2c3d4e5f6a7b8c9d1",
+  "initialState": "menu",
+  "states": {
+    "menu": {
+      "message": "Bienvenido, elige una opción:",
+      "options": [
+        {
+          "input": ["1", "servicio"],
+          "event": "SERVICIO",
+          "next": "servicio"
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Crear un usuario (Admin)
+
+```json
+POST /api/admin/users
+{
+  "username": "nuevo_usuario",
+  "email": "usuario@ejemplo.com",
+  "password": "password123",
+  "shopId": "64f8a1b2c3d4e5f6a7b8c9d1",
+  "roleCode": "SHOPUSER",
+  "isActive": true
+}
+```
+
+## Desarrollo de Nuevos Endpoints
+
+### 1. 📝 Crear Documentación
+
+Agrega comentarios Swagger en el controlador:
 
 ```typescript
 /**
  * @swagger
  * /nueva-ruta:
- *   get:
+ *   post:
  *     summary: Descripción corta
  *     description: Descripción detallada
- *     tags: [TagName]
+ *     tags: [NombreModulo]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/NuevoSchema'
  *     responses:
  *       200:
  *         description: Respuesta exitosa
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SchemaName'
+ *               $ref: '#/components/schemas/RespuestaSchema'
  */
 ```
 
-### 2. Para Nuevos Esquemas
+### 2. 🏗️ Definir Esquemas
 
-Agrega el esquema en `docs/swagger.config.ts` en la sección `components.schemas`:
+Agrega esquemas en `docs/swagger.config.ts`:
 
 ```typescript
 NuevoSchema: {
   type: "object",
+  required: ["campo1", "campo2"],
   properties: {
     campo1: {
       type: "string",
       example: "valor ejemplo",
       description: "Descripción del campo"
+    },
+    campo2: {
+      type: "integer",
+      example: 123,
+      description: "Número de ejemplo"
     }
   }
 }
 ```
 
-### 3. Para Nuevas Tags
+### 3. 🧪 Probar el Endpoint
 
-Agrega la tag en `docs/swagger.config.ts` en la sección `tags`:
+1. Reinicia el servidor: `npm run dev`
+2. Ve a Swagger UI: `http://localhost:3000/api-docs`
+3. Busca tu nuevo endpoint
+4. Prueba con "Try it out"
 
-```typescript
-{
-  name: "NuevaTag",
-  description: "Descripción de la nueva tag"
-}
-```
+## Mejores Prácticas
 
-## Convenciones de Documentación
+### ✅ Documentación
 
-### 📋 Estructura de Endpoints
+- Siempre incluye `summary` y `description`
+- Usa tags apropiadas para categorizar
+- Documenta todos los códigos de respuesta posibles
+- Incluye ejemplos realistas y útiles
 
-- **Summary**: Descripción corta (máximo 50 caracteres)
-- **Description**: Descripción detallada del endpoint
-- **Tags**: Categorización del endpoint
-- **Security**: Autenticación requerida (si aplica)
-- **Parameters**: Parámetros de path, query, etc.
-- **Request Body**: Esquema del cuerpo de la petición
-- **Responses**: Todas las respuestas posibles con códigos de estado
+### 🔒 Seguridad
 
-### 🏷️ Tags Recomendadas
+- Marca endpoints que requieren autenticación
+- Documenta permisos y roles necesarios
+- Incluye ejemplos de tokens válidos
+- Especifica códigos de error de seguridad
 
-- `Auth`: Autenticación y autorización
-- `WhatsApp`: Funcionalidades de WhatsApp
-- `Flows`: Gestión de flujos conversacionales
-- `Health`: Monitoreo y salud del sistema
-- `Users`: Gestión de usuarios
-- `Shops`: Gestión de tiendas
+### 📊 Respuestas
 
-### 📊 Códigos de Estado
+- Documenta todas las respuestas posibles (200, 400, 401, 403, 404, 409, 500)
+- Incluye códigos de error comunes
+- Usa esquemas reutilizables cuando sea posible
+- Proporciona ejemplos de respuestas reales
 
-- `200`: Operación exitosa
-- `201`: Recurso creado exitosamente
-- `400`: Datos de entrada inválidos
-- `401`: No autenticado
-- `403`: Sin permisos
-- `404`: Recurso no encontrado
-- `409`: Conflicto (recurso duplicado)
-- `500`: Error interno del servidor
+### 🎨 Presentación
 
-## Herramientas de Desarrollo
+- Usa descripciones claras y concisas
+- Agrupa endpoints relacionados con tags
+- Incluye ejemplos prácticos de uso
+- Mantén consistencia en el formato
 
-### 🔧 Swagger Editor
+## Solución de Problemas
 
-Para editar la documentación de forma visual:
+### ❌ La documentación no aparece
 
-1. Copia el contenido de `swagger.config.ts`
-2. Pégalo en [Swagger Editor](https://editor.swagger.io/)
-3. Edita y valida
-4. Copia de vuelta al archivo
+1. Verifica que el servidor esté ejecutándose: `npm run dev`
+2. Revisa la consola por errores de compilación
+3. Asegúrate de que los archivos estén en las rutas correctas
+4. Verifica que las rutas estén incluidas en `swagger.config.ts`
 
-### 🧪 Testing con Swagger UI
+### ❌ Errores de sintaxis en Swagger
 
-1. Ve a `http://localhost:3000/api-docs`
-2. Haz clic en "Try it out" en cualquier endpoint
-3. Completa los parámetros requeridos
-4. Ejecuta la petición directamente desde la interfaz
+1. Usa [Swagger Editor](https://editor.swagger.io/) para validar
+2. Revisa la indentación (debe ser consistente)
+3. Verifica que las referencias a esquemas existan
+4. Asegúrate de que los tipos de datos sean correctos
 
-### 📱 Generación de SDKs
+### ❌ Endpoints no se muestran
 
-Puedes usar el JSON de Swagger para generar SDKs en diferentes lenguajes:
+1. Verifica que los comentarios tengan `@swagger`
+2. Asegúrate de que estén en el formato correcto
+3. Revisa que la ruta esté bien definida
+4. Verifica que el archivo esté incluido en `apis` de `swagger.config.ts`
 
-- **JavaScript/TypeScript**: `swagger-codegen`
-- **Python**: `swagger-codegen` o `openapi-generator`
-- **Java**: `swagger-codegen`
-- **C#**: `swagger-codegen`
+### ❌ Autenticación no funciona
 
-## Mantenimiento
-
-### 🔄 Actualización de Documentación
-
-1. Actualiza los archivos en `docs/routes/`
-2. Modifica esquemas en `docs/swagger.config.ts` si es necesario
-3. Reinicia el servidor para ver los cambios
-4. Verifica que la documentación se vea correctamente
-
-### ✅ Validación
-
-- Usa Swagger Editor para validar la sintaxis
-- Prueba todos los endpoints desde Swagger UI
-- Verifica que los ejemplos sean correctos
-- Asegúrate de que los esquemas estén bien definidos
+1. Verifica que el token JWT sea válido
+2. Asegúrate de usar el formato correcto: `Bearer tu_token`
+3. Revisa que el usuario tenga los permisos necesarios
+4. Verifica que el token no haya expirado
 
 ## Recursos Adicionales
 
-- [Documentación de Swagger/OpenAPI](https://swagger.io/docs/)
+- [Swagger/OpenAPI Specification](https://swagger.io/specification/)
 - [Swagger UI](https://swagger.io/tools/swagger-ui/)
-- [OpenAPI Specification](https://swagger.io/specification/)
-- [Swagger Codegen](https://swagger.io/tools/swagger-codegen/)
+- [Swagger Editor](https://editor.swagger.io/)
+- [OpenAPI Examples](https://swagger.io/docs/specification/2-0/describing-request-body/)
+- [JWT.io](https://jwt.io/) - Para debuggear tokens JWT
+- [Postman](https://www.postman.com/) - Para importar y probar la API
+
+## Contacto
+
+Para soporte técnico o preguntas sobre la documentación:
+
+- **Email**: dev@zenda.com
+- **Equipo**: Equipo de Desarrollo Zenda

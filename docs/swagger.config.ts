@@ -161,6 +161,44 @@ const swaggerDefinition: SwaggerDefinition = {
           },
         },
       },
+      // Shop Schema
+      Shop: {
+        type: "object",
+        properties: {
+          id: {
+            type: "string",
+            example: "64f8a1b2c3d4e5f6a7b8c9d0",
+            description: "ID único de la tienda",
+          },
+          name: {
+            type: "string",
+            example: "Tienda Principal",
+            description: "Nombre de la tienda",
+          },
+          internalName: {
+            type: "string",
+            example: "tienda-principal",
+            description: "Nombre interno único de la tienda",
+          },
+          isActive: {
+            type: "boolean",
+            example: true,
+            description: "Estado activo de la tienda",
+          },
+          createdAt: {
+            type: "string",
+            format: "date-time",
+            example: "2024-01-15T10:30:00.000Z",
+            description: "Fecha de creación",
+          },
+          updatedAt: {
+            type: "string",
+            format: "date-time",
+            example: "2024-01-15T10:30:00.000Z",
+            description: "Fecha de última actualización",
+          },
+        },
+      },
       // WhatsApp Schemas
       WhatsAppSession: {
         type: "object",
@@ -278,6 +316,11 @@ const swaggerDefinition: SwaggerDefinition = {
       description: "Endpoints para gestión de flujos conversacionales",
     },
     {
+      name: "Admin",
+      description:
+        "Endpoints de administración del sistema (requiere rol ADMIN)",
+    },
+    {
       name: "Health",
       description: "Endpoints de salud y estado del sistema",
     },
@@ -286,7 +329,7 @@ const swaggerDefinition: SwaggerDefinition = {
 
 const options = {
   definition: swaggerDefinition,
-  apis: ["./src/routes/*.ts", "./src/controllers/*.ts", "./docs/routes/*.ts"],
+  apis: ["./docs/routes/*.ts"], // Solo leer documentación de la carpeta docs
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

@@ -2,6 +2,7 @@ import { Router } from "express";
 import whatsappRoutes from "./whatsapp.routes";
 import flowRoutes from "./flow.routes";
 import authRoutes from "./auth.routes";
+import adminRoutes from "./admin";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.get("/health", (req, res) => {
 router.use("/auth", authRoutes);
 router.use("/whatsapp", whatsappRoutes);
 router.use("/flows", flowRoutes);
+router.use("/admin", adminRoutes);
 
 export default router;

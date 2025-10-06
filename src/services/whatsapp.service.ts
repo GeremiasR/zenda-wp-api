@@ -148,11 +148,19 @@ export class WhatsAppService {
   private normalizePhoneNumber(jid?: string): string {
     if (!jid) return "";
 
+    console.log("🔍 [DEBUG] normalizePhoneNumber input:", jid);
+
     // Remover el sufijo @s.whatsapp.net o @g.us para grupos
     let normalized = jid.split("@")[0];
+    console.log("🔍 [DEBUG] After removing @suffix:", normalized);
+
+    // Remover el sufijo de dispositivo (:1, :2, :3, etc.)
+    normalized = normalized.split(":")[0];
+    console.log("🔍 [DEBUG] After removing device suffix:", normalized);
 
     // Si termina en .us o similar, también removerlo
     normalized = normalized.split(".")[0];
+    console.log("🔍 [DEBUG] Final normalized:", normalized);
 
     return normalized;
   }
