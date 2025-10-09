@@ -216,7 +216,7 @@ class AdminFlowController {
       // Actualizar campos
       if (name !== undefined) flow.name = name;
       if (description !== undefined) flow.description = description;
-      if (phoneNumber !== undefined) flow.phoneNumber = phoneNumber;
+      // phoneNumber ya no existe en el modelo
       if (shopId !== undefined) flow.shopId = shopId;
       if (initialState !== undefined) flow.initialState = initialState;
       if (states !== undefined) flow.states = states;

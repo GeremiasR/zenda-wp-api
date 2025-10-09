@@ -17,7 +17,6 @@ export interface IFlowState {
 export interface IFlow extends Document {
   name: string;
   description: string;
-  phoneNumber: string;
   shopId: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -25,6 +24,11 @@ export interface IFlow extends Document {
   isDeleted: boolean;
   initialState: string;
   states: Record<string, IFlowState>;
+  getState(stateName: string): IFlowState | null;
+  getNextState(
+    currentState: string,
+    userInput: string
+  ): { nextState: string; event: string } | null;
 }
 
 // Schema para las opciones de un estado
@@ -74,11 +78,6 @@ const FlowSchema = new Schema<IFlow>(
       required: false,
       trim: true,
     },
-    phoneNumber: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     shopId: {
       type: Schema.Types.ObjectId,
       ref: "Shop",
@@ -115,7 +114,6 @@ const FlowSchema = new Schema<IFlow>(
 
 // Índices adicionales para optimizar consultas
 FlowSchema.index({ shopId: 1 });
-FlowSchema.index({ phoneNumber: 1 });
 FlowSchema.index({ isActive: 1, isDeleted: 1 });
 
 // Middleware para validar que el initialState exista en los states

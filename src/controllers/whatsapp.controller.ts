@@ -1,111 +1,202 @@
 import { Request, Response } from "express";
-import { whatsappService } from "../services/whatsapp.service";
+import { whatsappManagerService } from "../services/whatsapp-manager.service";
+import { WhatsAppProviderType } from "../providers/whatsapp";
 
 export class WhatsAppController {
   /**
-   * Conectar a WhatsApp
+   * Crear e inicializar una nueva sesión de WhatsApp
    */
-  public async connect(req: Request, res: Response): Promise<void> {
+  public async createSession(req: Request, res: Response): Promise<void> {
     try {
-      if (whatsappService.isReady()) {
-        res.status(200).json({
-          success: true,
-          message: "WhatsApp ya está conectado",
-          data: await whatsappService.getConnectionStatus(),
+      const { sessionId, phoneNumber, provider, credentials, shopId } =
+        req.body;
+
+      if (!sessionId || !phoneNumber || !provider) {
+        res.status(400).json({
+          success: false,
+          message: "Se requieren los campos sessionId, phoneNumber y provider",
         });
         return;
       }
 
-      await whatsappService.connect();
+      // Validar que el proveedor sea válido
+      if (!Object.values(WhatsAppProviderType).includes(provider)) {
+        res.status(400).json({
+          success: false,
+          message: `Proveedor no válido. Proveedores disponibles: ${Object.values(
+            WhatsAppProviderType
+          ).join(", ")}`,
+        });
+        return;
+      }
+
+      const providerInstance = await whatsappManagerService.initializeSession(
+        sessionId,
+        phoneNumber,
+        provider,
+        credentials,
+        shopId
+      );
 
       res.status(200).json({
         success: true,
-        message:
-          "Iniciando conexión con WhatsApp. Escanea el código QR que aparece en la consola.",
-        data: await whatsappService.getConnectionStatus(),
+        message: "Sesión de WhatsApp creada exitosamente",
+        data: {
+          sessionId,
+          phoneNumber,
+          provider,
+          shopId,
+        },
       });
     } catch (error) {
-      console.error("Error al conectar WhatsApp:", error);
+      console.error("Error al crear sesión de WhatsApp:", error);
       res.status(500).json({
         success: false,
-        message: "Error al conectar con WhatsApp",
+        message: "Error al crear sesión de WhatsApp",
         error: error instanceof Error ? error.message : "Error desconocido",
       });
     }
   }
 
   /**
-   * Desconectar de WhatsApp
+   * Conectar una sesión de WhatsApp
    */
-  public async disconnect(req: Request, res: Response): Promise<void> {
+  public async connectSession(req: Request, res: Response): Promise<void> {
     try {
-      await whatsappService.disconnect();
+      const { sessionId } = req.params;
+
+      if (!sessionId) {
+        res.status(400).json({
+          success: false,
+          message: "Se requiere el sessionId",
+        });
+        return;
+      }
+
+      await whatsappManagerService.connectSession(sessionId);
 
       res.status(200).json({
         success: true,
-        message: "Desconectado de WhatsApp exitosamente",
+        message: "Sesión conectada exitosamente",
+        data: { sessionId },
       });
     } catch (error) {
-      console.error("Error al desconectar WhatsApp:", error);
+      console.error("Error al conectar sesión:", error);
       res.status(500).json({
         success: false,
-        message: "Error al desconectar de WhatsApp",
+        message: "Error al conectar sesión",
         error: error instanceof Error ? error.message : "Error desconocido",
       });
     }
   }
 
   /**
-   * Obtener estado de la conexión
+   * Desconectar una sesión de WhatsApp
    */
-  public async getStatus(req: Request, res: Response): Promise<void> {
+  public async disconnectSession(req: Request, res: Response): Promise<void> {
     try {
-      const status = await whatsappService.getConnectionStatus();
+      const { sessionId } = req.params;
+
+      if (!sessionId) {
+        res.status(400).json({
+          success: false,
+          message: "Se requiere el sessionId",
+        });
+        return;
+      }
+
+      await whatsappManagerService.disconnectSession(sessionId);
 
       res.status(200).json({
         success: true,
-        message: "Estado de conexión obtenido",
+        message: "Sesión desconectada exitosamente",
+        data: { sessionId },
+      });
+    } catch (error) {
+      console.error("Error al desconectar sesión:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error al desconectar sesión",
+        error: error instanceof Error ? error.message : "Error desconocido",
+      });
+    }
+  }
+
+  /**
+   * Obtener estado de una sesión específica
+   */
+  public async getSessionStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { sessionId } = req.params;
+
+      if (!sessionId) {
+        res.status(400).json({
+          success: false,
+          message: "Se requiere el sessionId",
+        });
+        return;
+      }
+
+      const status = await whatsappManagerService.getSessionStatus(sessionId);
+
+      res.status(200).json({
+        success: true,
+        message: "Estado de sesión obtenido",
         data: status,
       });
     } catch (error) {
-      console.error("Error al obtener estado:", error);
+      console.error("Error al obtener estado de sesión:", error);
       res.status(500).json({
         success: false,
-        message: "Error al obtener estado de conexión",
+        message: "Error al obtener estado de sesión",
         error: error instanceof Error ? error.message : "Error desconocido",
       });
     }
   }
 
   /**
-   * Enviar mensaje a un número específico
+   * Obtener todas las sesiones activas
+   */
+  public async getActiveSessions(req: Request, res: Response): Promise<void> {
+    try {
+      const sessions = await whatsappManagerService.getActiveSessions();
+
+      res.status(200).json({
+        success: true,
+        message: "Sesiones activas obtenidas",
+        data: sessions,
+      });
+    } catch (error) {
+      console.error("Error al obtener sesiones activas:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error al obtener sesiones activas",
+        error: error instanceof Error ? error.message : "Error desconocido",
+      });
+    }
+  }
+
+  /**
+   * Enviar mensaje a través de una sesión específica
    */
   public async sendMessage(req: Request, res: Response): Promise<void> {
     try {
-      const { jid, message } = req.body;
+      const { sessionId, jid, message } = req.body;
 
-      if (!jid || !message) {
+      if (!sessionId || !jid || !message) {
         res.status(400).json({
           success: false,
-          message: "Se requieren los campos jid y message",
+          message: "Se requieren los campos sessionId, jid y message",
         });
         return;
       }
 
-      if (!whatsappService.isReady()) {
-        res.status(400).json({
-          success: false,
-          message: "WhatsApp no está conectado",
-        });
-        return;
-      }
-
-      await whatsappService.sendMessage(jid, message);
+      await whatsappManagerService.sendMessage(sessionId, jid, message);
 
       res.status(200).json({
         success: true,
         message: "Mensaje enviado exitosamente",
-        data: { jid, message },
+        data: { sessionId, jid, message },
       });
     } catch (error) {
       console.error("Error al enviar mensaje:", error);
@@ -118,40 +209,68 @@ export class WhatsAppController {
   }
 
   /**
-   * Enviar mensaje a un grupo
+   * Enviar mensaje a un grupo a través de una sesión específica
    */
   public async sendGroupMessage(req: Request, res: Response): Promise<void> {
     try {
-      const { groupJid, message } = req.body;
+      const { sessionId, groupJid, message } = req.body;
 
-      if (!groupJid || !message) {
+      if (!sessionId || !groupJid || !message) {
         res.status(400).json({
           success: false,
-          message: "Se requieren los campos groupJid y message",
+          message: "Se requieren los campos sessionId, groupJid y message",
         });
         return;
       }
 
-      if (!whatsappService.isReady()) {
-        res.status(400).json({
-          success: false,
-          message: "WhatsApp no está conectado",
-        });
-        return;
-      }
-
-      await whatsappService.sendMessageToGroup(groupJid, message);
+      await whatsappManagerService.sendGroupMessage(
+        sessionId,
+        groupJid,
+        message
+      );
 
       res.status(200).json({
         success: true,
         message: "Mensaje enviado al grupo exitosamente",
-        data: { groupJid, message },
+        data: { sessionId, groupJid, message },
       });
     } catch (error) {
       console.error("Error al enviar mensaje al grupo:", error);
       res.status(500).json({
         success: false,
         message: "Error al enviar mensaje al grupo",
+        error: error instanceof Error ? error.message : "Error desconocido",
+      });
+    }
+  }
+
+  /**
+   * Eliminar una sesión
+   */
+  public async removeSession(req: Request, res: Response): Promise<void> {
+    try {
+      const { sessionId } = req.params;
+
+      if (!sessionId) {
+        res.status(400).json({
+          success: false,
+          message: "Se requiere el sessionId",
+        });
+        return;
+      }
+
+      await whatsappManagerService.removeSession(sessionId);
+
+      res.status(200).json({
+        success: true,
+        message: "Sesión eliminada exitosamente",
+        data: { sessionId },
+      });
+    } catch (error) {
+      console.error("Error al eliminar sesión:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error al eliminar sesión",
         error: error instanceof Error ? error.message : "Error desconocido",
       });
     }

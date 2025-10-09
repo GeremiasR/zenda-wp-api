@@ -64,12 +64,27 @@ router.post("/webhook", (req, res) => {
   }
 });
 
-// Rutas para Baileys WhatsApp
-router.post("/connect", (req, res) => whatsappController.connect(req, res));
-router.post("/disconnect", (req, res) =>
-  whatsappController.disconnect(req, res)
+// Rutas para gestión de sesiones de WhatsApp
+router.post("/sessions", (req, res) =>
+  whatsappController.createSession(req, res)
 );
-router.get("/status", (req, res) => whatsappController.getStatus(req, res));
+router.post("/sessions/:sessionId/connect", (req, res) =>
+  whatsappController.connectSession(req, res)
+);
+router.post("/sessions/:sessionId/disconnect", (req, res) =>
+  whatsappController.disconnectSession(req, res)
+);
+router.get("/sessions/:sessionId/status", (req, res) =>
+  whatsappController.getSessionStatus(req, res)
+);
+router.get("/sessions", (req, res) =>
+  whatsappController.getActiveSessions(req, res)
+);
+router.delete("/sessions/:sessionId", (req, res) =>
+  whatsappController.removeSession(req, res)
+);
+
+// Rutas para envío de mensajes
 router.post("/send", (req, res) => whatsappController.sendMessage(req, res));
 router.post("/send-group", (req, res) =>
   whatsappController.sendGroupMessage(req, res)

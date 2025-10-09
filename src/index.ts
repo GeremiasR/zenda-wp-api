@@ -6,8 +6,10 @@ import routes from "./routes";
 import { logger } from "./middlewares/logger.middleware";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware";
 import { setupSwagger } from "./middlewares/swagger.middleware";
-import { whatsappService } from "./services/whatsapp.service";
+import { whatsappManagerService } from "./services/whatsapp-manager.service";
+import { whatsappMultitenantManagerService } from "./services/whatsapp-multitenant-manager.service";
 import { databaseService } from "./services/database.service";
+import { redisService } from "./services/redis.service";
 import { initializeRoles } from "./utils/init-roles";
 import { createDefaultAdmin } from "./utils/create-admin-user";
 
@@ -54,6 +56,11 @@ app.listen(PORT, async () => {
     await databaseService.connect();
     console.log("MongoDB conectado exitosamente");
 
+    // Conectar a Redis
+    console.log("Conectando a Redis...");
+    await redisService.connect();
+    console.log("Redis conectado exitosamente");
+
     // Inicializar roles por defecto
     console.log("Inicializando roles por defecto...");
     await initializeRoles();
@@ -70,14 +77,20 @@ app.listen(PORT, async () => {
       }
     }
 
-    // Inicializar WhatsApp automáticamente en desarrollo
-    if (config.server.nodeEnv === "development") {
-      try {
-        console.log("Iniciando conexión con WhatsApp...");
-        await whatsappService.connect();
-      } catch (error) {
-        console.error("Error al inicializar WhatsApp:", error);
-      }
+    // Inicializar sesiones existentes de WhatsApp
+    try {
+      console.log("Inicializando sesiones existentes de WhatsApp...");
+      await whatsappManagerService.initializeExistingSessions();
+    } catch (error) {
+      console.error("Error al inicializar sesiones de WhatsApp:", error);
+    }
+
+    // Inicializar sesiones multitenant existentes
+    try {
+      console.log("Inicializando sesiones multitenant existentes...");
+      await whatsappMultitenantManagerService.initializeExistingSessions();
+    } catch (error) {
+      console.error("Error al inicializar sesiones multitenant:", error);
     }
   } catch (error) {
     console.error("Error al inicializar servicios:", error);

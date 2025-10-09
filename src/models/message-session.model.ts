@@ -7,6 +7,7 @@ export interface IMessageSession extends Document {
   to: string; // Número de WhatsApp al que se envía el mensaje
   flowId: mongoose.Types.ObjectId;
   currentState: string; // Estado actual en el flujo
+  lastActivity: Date; // Última actividad en la sesión
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +39,10 @@ const MessageSessionSchema = new Schema<IMessageSession>(
       type: String,
       required: true,
     },
+    lastActivity: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: true, // Agrega createdAt y updatedAt automáticamente
@@ -45,7 +50,7 @@ const MessageSessionSchema = new Schema<IMessageSession>(
 );
 
 // Índices compuestos para consultas eficientes
-MessageSessionSchema.index({ from: 1, to: 1 }, { unique: true });
+MessageSessionSchema.index({ from: 1, to: 1, flowId: 1 }, { unique: true });
 MessageSessionSchema.index({ shopId: 1 });
 MessageSessionSchema.index({ flowId: 1 });
 
@@ -66,6 +71,7 @@ MessageSessionSchema.statics.findOrCreate = async function (
   let session = await this.findOne({
     from,
     to,
+    flowId,
   });
 
   if (!session) {

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Flow, IFlow, MessageSession, IMessageSession, Shop } from "../models";
+import { Flow, IFlow, MessageSession, IMessageSession } from "../models";
 
 export class FlowService {
   private static instance: FlowService;
@@ -48,6 +48,46 @@ export class FlowService {
   }
 
   /**
+   * Obtener o crear una sesión de mensajes por flowId
+   */
+  public async getOrCreateMessageSessionByFlow(
+    from: string,
+    to: string,
+    flowId: string
+  ): Promise<{
+    session: IMessageSession | null;
+    isNew: boolean;
+  }> {
+    try {
+      // Buscar una sesión existente
+      let session = await MessageSession.findOne({ from, to, flowId });
+
+      // Si existe la sesión, devolverla
+      if (session) {
+        return { session, isNew: false };
+      }
+
+      // Si no existe la sesión, crear una nueva
+      session = new MessageSession({
+        from,
+        to,
+        flowId,
+        currentState: "initial", // Se actualizará con el initialState del flow
+      });
+
+      await session.save();
+
+      return { session, isNew: true };
+    } catch (error) {
+      console.error(
+        "Error al obtener o crear sesión de mensajes por flowId:",
+        error
+      );
+      return { session: null, isNew: false };
+    }
+  }
+
+  /**
    * Obtener o crear una sesión de mensajes
    */
   public async getOrCreateMessageSession(
@@ -90,6 +130,81 @@ export class FlowService {
     } catch (error) {
       console.error("Error al obtener o crear sesión de mensajes:", error);
       return { session: null, flow: null, isNew: false };
+    }
+  }
+
+  /**
+   * Procesar un mensaje entrante según el flujo de conversación usando flowId
+   */
+  public async processMessageByFlowId(
+    from: string,
+    to: string,
+    message: string,
+    flowId: string
+  ): Promise<{ response: string; sessionUpdated: boolean }> {
+    try {
+      // Obtener el flujo por ID
+      const flow = await this.getFlowById(flowId);
+      if (!flow) {
+        return {
+          response: "Lo siento, no se encontró el flujo configurado.",
+          sessionUpdated: false,
+        };
+      }
+
+      // Obtener o crear la sesión de mensajes
+      const { session, isNew } = await this.getOrCreateMessageSessionByFlow(
+        from,
+        to,
+        flowId
+      );
+
+      // Si no hay sesión, devolver un mensaje de error
+      if (!session) {
+        return {
+          response: "Lo siento, no se pudo crear la sesión de mensajes.",
+          sessionUpdated: false,
+        };
+      }
+
+      // Si es una sesión nueva, enviar el mensaje del estado inicial
+      if (isNew) {
+        const initialState = flow.states[flow.initialState];
+        return {
+          response: initialState.message,
+          sessionUpdated: true,
+        };
+      }
+
+      // Obtener el siguiente estado basado en el input del usuario
+      const nextStateResult = flow.getNextState(session.currentState, message);
+
+      if (nextStateResult) {
+        // Actualizar la sesión con el nuevo estado
+        session.currentState = nextStateResult.nextState;
+        session.lastActivity = new Date();
+        await session.save();
+
+        // Obtener el mensaje del nuevo estado
+        const newState = flow.states[nextStateResult.nextState];
+        return {
+          response: newState.message,
+          sessionUpdated: true,
+        };
+      } else {
+        // No se encontró una transición válida, mantener el estado actual
+        const currentState = flow.states[session.currentState];
+        return {
+          response: currentState.message,
+          sessionUpdated: false,
+        };
+      }
+    } catch (error) {
+      console.error("Error al procesar mensaje por flowId:", error);
+      return {
+        response: "Lo siento, ocurrió un error al procesar tu mensaje.",
+        sessionUpdated: false,
+      };
     }
   }
 

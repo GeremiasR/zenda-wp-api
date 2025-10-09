@@ -237,6 +237,188 @@ const swaggerDefinition: SwaggerDefinition = {
           },
         },
       },
+      // WhatsApp Multitenant Schemas
+      WhatsAppMultitenantActivateRequest: {
+        type: "object",
+        required: ["shopId", "flowId"],
+        properties: {
+          shopId: {
+            type: "string",
+            example: "shop_123",
+            description: "ID único del shop",
+          },
+          flowId: {
+            type: "string",
+            example: "64f8a1b2c3d4e5f6a7b8c9d0",
+            description: "ID del flujo de conversación a usar",
+          },
+        },
+      },
+      WhatsAppMultitenantActivateResponse: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            example: true,
+          },
+          message: {
+            type: "string",
+            example: "QR generado exitosamente",
+          },
+          data: {
+            type: "object",
+            properties: {
+              shopId: {
+                type: "string",
+                example: "shop_123",
+              },
+              flowId: {
+                type: "string",
+                example: "64f8a1b2c3d4e5f6a7b8c9d0",
+                description: "ID del flujo de conversación",
+              },
+              sessionId: {
+                type: "string",
+                example: "shop_123_64f8a1b2c3d4e5f6a7b8c9d0",
+                description: "ID de la sesión generada",
+              },
+              qr: {
+                type: "string",
+                example: "2@ABC123DEF456...",
+                description: "Código QR para conectar WhatsApp",
+              },
+            },
+          },
+        },
+      },
+      WhatsAppMultitenantStatus: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            example: true,
+          },
+          message: {
+            type: "string",
+            example: "Estado obtenido exitosamente",
+          },
+          data: {
+            type: "object",
+            properties: {
+              shopId: {
+                type: "string",
+                example: "shop_123",
+              },
+              isActive: {
+                type: "boolean",
+                example: true,
+                description: "Si la sesión está activa en memoria",
+              },
+              isConnected: {
+                type: "boolean",
+                example: true,
+                description: "Si WhatsApp está conectado",
+              },
+              qr: {
+                type: "string",
+                example: "2@ABC123DEF456...",
+                description: "Código QR actual (si existe)",
+              },
+              phoneNumber: {
+                type: "string",
+                example: "5491123456789@s.whatsapp.net",
+                description: "Número de WhatsApp conectado",
+              },
+              lastConnection: {
+                type: "string",
+                format: "date-time",
+                example: "2024-01-15T10:30:00.000Z",
+                description: "Última conexión exitosa",
+              },
+            },
+          },
+        },
+      },
+      WhatsAppMultitenantSendMessageRequest: {
+        type: "object",
+        required: ["shopId", "jid", "message"],
+        properties: {
+          shopId: {
+            type: "string",
+            example: "shop_123",
+            description: "ID del shop",
+          },
+          jid: {
+            type: "string",
+            example: "5491123456789@s.whatsapp.net",
+            description: "JID del destinatario",
+          },
+          message: {
+            type: "string",
+            example: "Hola! ¿Cómo estás?",
+            description: "Mensaje a enviar",
+          },
+        },
+      },
+      WhatsAppMultitenantSendGroupMessageRequest: {
+        type: "object",
+        required: ["shopId", "groupJid", "message"],
+        properties: {
+          shopId: {
+            type: "string",
+            example: "shop_123",
+            description: "ID del shop",
+          },
+          groupJid: {
+            type: "string",
+            example: "120363123456789012@g.us",
+            description: "JID del grupo",
+          },
+          message: {
+            type: "string",
+            example: "Mensaje para el grupo",
+            description: "Mensaje a enviar al grupo",
+          },
+        },
+      },
+      WhatsAppMultitenantActiveSessions: {
+        type: "object",
+        properties: {
+          success: {
+            type: "boolean",
+            example: true,
+          },
+          message: {
+            type: "string",
+            example: "Sesiones activas obtenidas",
+          },
+          data: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                shopId: {
+                  type: "string",
+                  example: "shop_123",
+                },
+                isConnected: {
+                  type: "boolean",
+                  example: true,
+                },
+                phoneNumber: {
+                  type: "string",
+                  example: "5491123456789@s.whatsapp.net",
+                },
+                lastConnection: {
+                  type: "string",
+                  format: "date-time",
+                  example: "2024-01-15T10:30:00.000Z",
+                },
+              },
+            },
+          },
+        },
+      },
       // Flow Schemas
       Flow: {
         type: "object",
@@ -309,7 +491,13 @@ const swaggerDefinition: SwaggerDefinition = {
     },
     {
       name: "WhatsApp",
-      description: "Endpoints para gestión de sesiones de WhatsApp",
+      description:
+        "Endpoints para gestión de sesiones de WhatsApp (API original)",
+    },
+    {
+      name: "WhatsApp Multitenant",
+      description:
+        "Endpoints para gestión de WhatsApp por shop (API multitenant)",
     },
     {
       name: "Flows",

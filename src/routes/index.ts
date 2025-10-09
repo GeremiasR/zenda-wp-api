@@ -1,5 +1,6 @@
 import { Router } from "express";
 import whatsappRoutes from "./whatsapp.routes";
+import whatsappMultitenantRoutes from "./whatsapp-multitenant.routes";
 import flowRoutes from "./flow.routes";
 import authRoutes from "./auth.routes";
 import adminRoutes from "./admin";
@@ -16,6 +17,7 @@ router.get("/health", (req, res) => {
 // Rutas principales
 router.use("/auth", authRoutes);
 router.use("/whatsapp", whatsappRoutes);
+router.use("/whatsapp-shop", whatsappMultitenantRoutes);
 router.use("/flows", flowRoutes);
 router.use("/admin", adminRoutes);
 

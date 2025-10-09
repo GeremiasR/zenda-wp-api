@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon --exec ts-node src/index.ts",
+    "dev:debug": "nodemon --exec ts-node --inspect src/index.ts",
+    "dev:debug-brk": "nodemon --exec ts-node --inspect-brk src/index.ts",
     "build": "tsc",
+    "build:debug": "tsc && node --inspect dist/index.js",
+    "debug": "node --inspect-brk dist/index.js",
+    "debug:attach": "node --inspect=0.0.0.0:9229 dist/index.js",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "docs:generate": "node docs/generate-docs.js",
@@ -32,6 +37,7 @@
   "dependencies": {
     "@hapi/boom": "^10.0.1",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/redis": "^4.0.10",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "@whiskeysockets/baileys": "^7.0.0-rc.4",
@@ -45,6 +51,7 @@
     "morgan": "^1.10.1",
     "pino": "^9.11.0",
     "qrcode-terminal": "^0.12.0",
+    "redis": "^5.8.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   }
