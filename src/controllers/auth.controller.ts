@@ -143,11 +143,11 @@ class AuthController {
     next: NextFunction
   ): Promise<void> {
     try {
-      if (!req.user) {
+      if (!req.tokenPayload) {
         throw Boom.unauthorized("Usuario no autenticado");
       }
 
-      await authService.logoutAll((req.user as any)._id.toString());
+      await authService.logoutAll(req.tokenPayload.sub);
 
       res.status(200).json({
         success: true,
@@ -161,6 +161,7 @@ class AuthController {
   /**
    * GET /auth/me
    * Obtiene información del usuario autenticado
+   * Nota: Requiere middleware loadUser para obtener información completa
    */
   async getProfile(
     req: Request,
@@ -168,6 +169,7 @@ class AuthController {
     next: NextFunction
   ): Promise<void> {
     try {
+      // Este endpoint requiere el middleware loadUser
       if (!req.user) {
         throw Boom.unauthorized("Usuario no autenticado");
       }

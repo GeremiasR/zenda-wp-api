@@ -20,7 +20,8 @@ declare global {
 
 /**
  * Middleware de autenticación JWT
- * Verifica que el token sea válido y agrega la información del usuario a la request
+ * Verifica que el token sea válido y agrega el payload del token a la request
+ * NO consulta la base de datos para mejorar el rendimiento
  */
 export const authenticateToken = async (
   req: Request,
@@ -38,19 +39,7 @@ export const authenticateToken = async (
     // Verificar y decodificar el token
     const tokenPayload = authService.verifyAccessToken(token);
 
-    // Obtener información completa del usuario
-    const user = await authService.getUserFromToken(token);
-
-    if (!user) {
-      throw Boom.unauthorized("Usuario no encontrado");
-    }
-
-    if (!user.isActive) {
-      throw Boom.unauthorized("Usuario inactivo");
-    }
-
-    // Agregar información del usuario a la request
-    req.user = user;
+    // Agregar payload del token a la request (sin consultar DB)
     req.tokenPayload = tokenPayload;
 
     next();
@@ -65,7 +54,7 @@ export const authenticateToken = async (
 
 /**
  * Middleware opcional de autenticación
- * No falla si no hay token, pero agrega el usuario si existe
+ * No falla si no hay token, pero agrega el payload si existe
  */
 export const optionalAuth = async (
   req: Request,
@@ -78,12 +67,7 @@ export const optionalAuth = async (
 
     if (token) {
       const tokenPayload = authService.verifyAccessToken(token);
-      const user = await authService.getUserFromToken(token);
-
-      if (user && user.isActive) {
-        req.user = user;
-        req.tokenPayload = tokenPayload;
-      }
+      req.tokenPayload = tokenPayload;
     }
 
     next();
@@ -94,17 +78,59 @@ export const optionalAuth = async (
 };
 
 /**
+ * Middleware para cargar el usuario completo desde la base de datos
+ * Usar solo cuando se necesite información adicional del usuario más allá del token
+ * Requiere que authenticateToken se haya ejecutado antes
+ */
+export const loadUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.tokenPayload) {
+      throw Boom.unauthorized("Autenticación requerida");
+    }
+
+    // Obtener información completa del usuario desde la DB
+    const user = await authService.getUserFromToken(
+      req.headers.authorization?.split(" ")[1] || ""
+    );
+
+    if (!user) {
+      throw Boom.unauthorized("Usuario no encontrado");
+    }
+
+    if (!user.isActive) {
+      throw Boom.unauthorized("Usuario inactivo");
+    }
+
+    // Agregar información completa del usuario a la request
+    req.user = user;
+
+    next();
+  } catch (error) {
+    if (Boom.isBoom(error)) {
+      next(error);
+    } else {
+      next(Boom.unauthorized("Error al cargar usuario"));
+    }
+  }
+};
+
+/**
  * Middleware de autorización por roles
  * Verifica que el usuario tenga uno de los roles permitidos
+ * Usa el roleCode del token (no consulta DB)
  */
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
+    if (!req.tokenPayload) {
       next(Boom.unauthorized("Autenticación requerida"));
       return;
     }
 
-    if (!allowedRoles.includes(req.user.roleCode)) {
+    if (!allowedRoles.includes(req.tokenPayload.roleCode)) {
       next(Boom.forbidden("Permisos insuficientes"));
       return;
     }
@@ -116,10 +142,11 @@ export const requireRole = (...allowedRoles: string[]) => {
 /**
  * Middleware de autorización por tienda
  * Verifica que el usuario pertenezca a la tienda especificada
+ * Usa el shopId del token (no consulta DB)
  */
 export const requireShop = (shopIdParam: string = "shopId") => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
+    if (!req.tokenPayload) {
       next(Boom.unauthorized("Autenticación requerida"));
       return;
     }
@@ -132,13 +159,13 @@ export const requireShop = (shopIdParam: string = "shopId") => {
     }
 
     // Los administradores pueden acceder a cualquier tienda
-    if (req.user.roleCode === "ADMIN") {
+    if (req.tokenPayload.roleCode === "ADMIN") {
       next();
       return;
     }
 
     // Verificar que el usuario pertenezca a la tienda
-    if (req.user.shopId.toString() !== requestedShopId) {
+    if (req.tokenPayload.shopId !== requestedShopId) {
       next(Boom.forbidden("No tienes acceso a esta tienda"));
       return;
     }
