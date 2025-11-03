@@ -3,17 +3,14 @@ import Boom from "@hapi/boom";
 import authService from "../services/auth.service";
 import { IUser } from "../models";
 
+import { TokenPayload } from "../services/auth.service";
+
 // Extender la interfaz Request para incluir el usuario
 declare global {
   namespace Express {
     interface Request {
       user?: IUser;
-      tokenPayload?: {
-        sub: string;
-        email: string;
-        roleCode: string;
-        shopId: string;
-      };
+      tokenPayload?: TokenPayload;
     }
   }
 }
@@ -119,9 +116,10 @@ export const loadUser = async (
 };
 
 /**
+ * @deprecated Usar authorize() de authorize.middleware.ts en su lugar
  * Middleware de autorización por roles
  * Verifica que el usuario tenga uno de los roles permitidos
- * Usa el roleCode del token (no consulta DB)
+ * Usa los roles del token (no consulta DB)
  */
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -130,7 +128,11 @@ export const requireRole = (...allowedRoles: string[]) => {
       return;
     }
 
-    if (!allowedRoles.includes(req.tokenPayload.roleCode)) {
+    // Verificar roles del token (compatibilidad con nuevo sistema)
+    const userRoles = req.tokenPayload.roles || [];
+    const hasRole = allowedRoles.some((role) => userRoles.includes(role));
+
+    if (!hasRole) {
       next(Boom.forbidden("Permisos insuficientes"));
       return;
     }
@@ -158,8 +160,9 @@ export const requireShop = (shopIdParam: string = "shopId") => {
       return;
     }
 
-    // Los administradores pueden acceder a cualquier tienda
-    if (req.tokenPayload.roleCode === "ADMIN") {
+    // Verificar si tiene el rol ADMIN (puede acceder a cualquier tienda)
+    const userRoles = req.tokenPayload.roles || [];
+    if (userRoles.includes("ADMIN")) {
       next();
       return;
     }
@@ -175,16 +178,19 @@ export const requireShop = (shopIdParam: string = "shopId") => {
 };
 
 /**
+ * @deprecated Usar authorize() de authorize.middleware.ts en su lugar
  * Middleware para verificar que el usuario sea administrador
  */
 export const requireAdmin = requireRole("ADMIN");
 
 /**
+ * @deprecated Usar authorize() de authorize.middleware.ts en su lugar
  * Middleware para verificar que el usuario sea administrador de tienda o superior
  */
 export const requireShopAdmin = requireRole("ADMIN", "SHOPADMIN");
 
 /**
+ * @deprecated Usar authorize() de authorize.middleware.ts en su lugar
  * Middleware para verificar que el usuario sea usuario de tienda o superior
  */
 export const requireShopUser = requireRole("ADMIN", "SHOPADMIN", "SHOPUSER");

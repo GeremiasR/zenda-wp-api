@@ -1,23 +1,20 @@
 import { Router } from "express";
 import adminFlowController from "../../controllers/admin/flow.controller";
-import {
-  authenticateToken,
-  requireAdmin,
-} from "../../middlewares/auth.middleware";
+import { authenticateToken } from "../../middlewares/auth.middleware";
+import { authorize } from "../../middlewares/authorize.middleware";
 
 const router = Router();
 
-// Todas las rutas requieren autenticación y rol de administrador
+// Todas las rutas requieren autenticación
 router.use(authenticateToken);
-router.use(requireAdmin);
 
-// Rutas de flujos
-router.get("/", adminFlowController.listFlows);
-router.post("/", adminFlowController.createFlow);
-router.get("/:id", adminFlowController.getFlowById);
-router.put("/:id", adminFlowController.updateFlow);
-router.patch("/:id/toggle-status", adminFlowController.toggleFlowStatus);
-router.delete("/:id", adminFlowController.deleteFlow);
-router.delete("/:id/hard", adminFlowController.hardDeleteFlow);
+// Rutas de flujos con autorización basada en permisos
+router.get("/", authorize("flow", "view"), adminFlowController.listFlows);
+router.post("/", authorize("flow", "create"), adminFlowController.createFlow);
+router.get("/:id", authorize("flow", "view"), adminFlowController.getFlowById);
+router.put("/:id", authorize("flow", "update"), adminFlowController.updateFlow);
+router.patch("/:id/toggle-status", authorize("flow", "update"), adminFlowController.toggleFlowStatus);
+router.delete("/:id", authorize("flow", "delete"), adminFlowController.deleteFlow);
+router.delete("/:id/hard", authorize("flow", "delete"), adminFlowController.hardDeleteFlow);
 
 export default router;

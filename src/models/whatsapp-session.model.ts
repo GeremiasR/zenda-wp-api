@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
+import { AuthenticationState } from "@whiskeysockets/baileys";
 
 // Interfaz para el documento de sesión de WhatsApp
 export interface IWhatsAppSession extends Document {
@@ -9,12 +10,15 @@ export interface IWhatsAppSession extends Document {
   lastSeen: Date;
   qrCode?: string;
   connectionData?: any;
-  credentials?: any; // Credenciales específicas del proveedor
+  data?: string; // authState completo serializado en Base64 (creds + keys)
+  number?: string; // Número de teléfono una vez autenticado (después de escanear QR)
   shopId?: string; // ID de la tienda asociada
   flowId?: mongoose.Types.ObjectId; // ID del flujo asociado
   createdAt: Date;
   updatedAt: Date;
   isActive(): boolean;
+  getAuthState(): AuthenticationState | null;
+  saveAuthState(authState: AuthenticationState): Promise<void>;
 }
 
 // Interfaz para los métodos estáticos del modelo
@@ -63,9 +67,14 @@ const WhatsAppSessionSchema = new Schema<IWhatsAppSession>(
       type: Schema.Types.Mixed,
       required: false,
     },
-    credentials: {
-      type: Schema.Types.Mixed,
+    data: {
+      type: String,
       required: false,
+    },
+    number: {
+      type: String,
+      required: false,
+      index: true,
     },
     shopId: {
       type: String,
@@ -90,6 +99,7 @@ WhatsAppSessionSchema.index({ phoneNumber: 1, isConnected: 1 });
 WhatsAppSessionSchema.index({ provider: 1, isConnected: 1 });
 WhatsAppSessionSchema.index({ shopId: 1, isConnected: 1 });
 WhatsAppSessionSchema.index({ flowId: 1, isConnected: 1 });
+WhatsAppSessionSchema.index({ number: 1, isConnected: 1 });
 WhatsAppSessionSchema.index({ createdAt: -1 });
 
 // Middleware pre-save para actualizar lastSeen cuando cambie isConnected
@@ -108,6 +118,43 @@ WhatsAppSessionSchema.methods.isActive = function (): boolean {
 
   // Considerar activa si se conectó en las últimas 24 horas
   return this.isConnected && hoursDiff < 24;
+};
+
+// Método de instancia para obtener authState desde Base64
+WhatsAppSessionSchema.methods.getAuthState = function (): AuthenticationState | null {
+  if (!this.data) {
+    return null;
+  }
+
+  try {
+    const decoded = Buffer.from(this.data, "base64").toString("utf-8");
+    const authState = JSON.parse(decoded);
+    return authState as AuthenticationState;
+  } catch (error) {
+    console.error("Error al deserializar authState desde Base64:", error);
+    return null;
+  }
+};
+
+// Método de instancia para guardar authState como Base64
+WhatsAppSessionSchema.methods.saveAuthState = async function (
+  authState: AuthenticationState
+): Promise<void> {
+  try {
+    const serialized = JSON.stringify(authState);
+    const base64 = Buffer.from(serialized, "utf-8").toString("base64");
+    this.data = base64;
+
+    // Si tiene creds.me.id, actualizar number
+    if (authState.creds?.me?.id) {
+      this.number = authState.creds.me.id;
+    }
+
+    await this.save();
+  } catch (error) {
+    console.error("Error al serializar authState a Base64:", error);
+    throw error;
+  }
 };
 
 // Método estático para encontrar sesiones activas

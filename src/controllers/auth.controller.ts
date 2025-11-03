@@ -179,7 +179,7 @@ class AuthController {
         id: req.user._id,
         username: req.user.username,
         email: req.user.email,
-        roleCode: req.user.roleCode,
+        roles: req.user.roles || [],
         shopId: req.user.shopId,
         isActive: req.user.isActive,
         createdAt: req.user.createdAt,

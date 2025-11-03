@@ -3,6 +3,8 @@ import crypto from "crypto";
 import { User, RefreshToken } from "../models";
 import { IUser, IRefreshToken } from "../models";
 import Boom from "@hapi/boom";
+import { permissionService } from "./permission.service";
+import { permissionCacheService } from "./permission-cache.service";
 
 // Configuración de JWT
 const JWT_SECRET = process.env.JWT_SECRET || "tu-secreto-super-seguro";
@@ -13,7 +15,8 @@ const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
 export interface TokenPayload {
   sub: string; // user ID
   email: string;
-  roleCode: string;
+  roles: string[]; // Array de códigos de roles
+  permissions: Record<string, string[]>; // Módulo → Acciones permitidas (ej: { "user": ["view", "create"], "shop": ["view"] })
   shopId: string;
 }
 
@@ -84,11 +87,34 @@ class AuthService {
       throw Boom.unauthorized("Credenciales inválidas");
     }
 
-    // Generar tokens
+    // Calcular permisos consolidados del usuario basándose en sus roles
+    const userRoles = (user.roles as string[]) || [];
+    const permissions = await permissionService.calculateUserPermissions(userRoles);
+
+    // Si no hay permisos, el usuario no tiene roles asignados
+    if (!permissions) {
+      console.warn(`Usuario ${user._id} no tiene roles asignados o sus roles no tienen permisos`);
+    }
+
+    // Guardar permisos en Redis (cache)
+    if (permissions) {
+      try {
+        await permissionCacheService.saveUserPermissions(
+          (user._id as any).toString(),
+          permissions
+        );
+      } catch (error) {
+        console.error("Error al guardar permisos en Redis:", error);
+        // No fallar el login si Redis falla, pero loguear el error
+      }
+    }
+
+    // Generar tokens con permisos
     const tokenPayload: TokenPayload = {
       sub: (user._id as any).toString(),
       email: user.email,
-      roleCode: user.roleCode,
+      roles: userRoles,
+      permissions: permissions?.permissions || {},
       shopId: (user.shopId as any)._id.toString(),
     };
 
@@ -106,6 +132,12 @@ class AuthService {
     });
 
     await refreshTokenDoc.save();
+
+    // El WebSocket se inicializa automáticamente cuando el cliente se conecta
+    // después de recibir el access_token. No es necesario hacer nada aquí ya que
+    // el cliente debe conectarse usando el token recibido.
+    // Para futuras implementaciones: aquí se podría emitir un evento de login_successful
+    // o notificar otros servicios sobre el login exitoso.
 
     return {
       access_token: accessToken,
@@ -137,11 +169,28 @@ class AuthService {
       throw Boom.unauthorized("Usuario inactivo");
     }
 
-    // Generar nuevos tokens
+    // Calcular permisos consolidados del usuario
+    const userRoles = (user.roles as string[]) || [];
+    const permissions = await permissionService.calculateUserPermissions(userRoles);
+
+    // Guardar permisos en Redis (cache)
+    if (permissions) {
+      try {
+        await permissionCacheService.saveUserPermissions(
+          (user._id as any).toString(),
+          permissions
+        );
+      } catch (error) {
+        console.error("Error al guardar permisos en Redis:", error);
+      }
+    }
+
+    // Generar nuevos tokens con permisos
     const tokenPayload: TokenPayload = {
       sub: (user._id as any).toString(),
       email: user.email,
-      roleCode: user.roleCode,
+      roles: userRoles,
+      permissions: permissions?.permissions || {},
       shopId: (user.shopId as any).toString(),
     };
 

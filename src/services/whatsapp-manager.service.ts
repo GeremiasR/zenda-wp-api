@@ -32,7 +32,6 @@ export class WhatsAppManagerService {
           sessionId,
           phoneNumber,
           provider,
-          credentials,
           shopId,
           isConnected: false,
         });
@@ -41,7 +40,6 @@ export class WhatsAppManagerService {
         // Actualizar la sesión existente
         session.phoneNumber = phoneNumber;
         session.provider = provider;
-        session.credentials = credentials;
         session.shopId = shopId;
         await session.save();
       }
@@ -277,11 +275,15 @@ export class WhatsAppManagerService {
 
       for (const session of sessions) {
         try {
+          // Obtener authState desde MongoDB si existe
+          const authState = session.data ? session.getAuthState() : null;
+          const credentials = authState?.creds || {};
+          
           const provider = WhatsAppProviderFactory.createProvider({
             sessionId: session.sessionId,
             phoneNumber: session.phoneNumber,
             provider: session.provider as WhatsAppProviderType,
-            credentials: session.credentials,
+            credentials,
           });
 
           this.setupProviderCallbacks(provider, session.sessionId);

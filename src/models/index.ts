@@ -5,7 +5,7 @@ export {
 } from "./whatsapp-session.model";
 export { default as User, IUser } from "./user.model";
 export { default as Shop, IShop } from "./shop.model";
-export { default as Role, IRole } from "./role.model";
+export { default as Role, IRole, IRoleModule } from "./role.model";
 export { default as RefreshToken, IRefreshToken } from "./refresh-token.model";
 export { default as Flow, IFlow, IFlowState, IFlowOption } from "./flow.model";
 export {

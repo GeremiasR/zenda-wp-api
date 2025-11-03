@@ -71,77 +71,8 @@ export class RedisService {
     return this.client;
   }
 
-  // Métodos específicos para sesiones de WhatsApp
-  public async saveSessionData(
-    shopId: string,
-    sessionData: any
-  ): Promise<void> {
-    const key = `session:shop:${shopId}`;
-    await this.getClient().setEx(key, 86400, JSON.stringify(sessionData)); // 24 horas
-  }
-
-  public async getSessionData(shopId: string): Promise<any | null> {
-    const key = `session:shop:${shopId}`;
-    const data = await this.getClient().get(key);
-    return data ? JSON.parse(data) : null;
-  }
-
-  public async saveCredentials(shopId: string, creds: any): Promise<void> {
-    const key = `session:shop:${shopId}:creds`;
-    await this.getClient().setEx(key, 86400, JSON.stringify(creds));
-  }
-
-  public async getCredentials(shopId: string): Promise<any | null> {
-    const key = `session:shop:${shopId}:creds`;
-    const data = await this.getClient().get(key);
-    return data ? JSON.parse(data) : null;
-  }
-
-  public async saveKeys(shopId: string, keys: any): Promise<void> {
-    const key = `session:shop:${shopId}:keys`;
-    await this.getClient().setEx(key, 86400, JSON.stringify(keys));
-  }
-
-  public async getKeys(shopId: string): Promise<any | null> {
-    const key = `session:shop:${shopId}:keys`;
-    const data = await this.getClient().get(key);
-    return data ? JSON.parse(data) : null;
-  }
-
-  public async saveQRCode(shopId: string, qr: string): Promise<void> {
-    const key = `session:shop:${shopId}:qr`;
-    await this.getClient().setEx(key, 300, qr); // 5 minutos
-  }
-
-  public async getQRCode(shopId: string): Promise<string | null> {
-    const key = `session:shop:${shopId}:qr`;
-    return await this.getClient().get(key);
-  }
-
-  public async deleteSession(shopId: string): Promise<void> {
-    const keys = [
-      `session:shop:${shopId}`,
-      `session:shop:${shopId}:creds`,
-      `session:shop:${shopId}:keys`,
-      `session:shop:${shopId}:qr`,
-    ];
-
-    await this.getClient().del(keys);
-  }
-
-  public async isSessionActive(shopId: string): Promise<boolean> {
-    const key = `session:shop:${shopId}`;
-    const exists = await this.getClient().exists(key);
-    return exists === 1;
-  }
-
-  public async getAllActiveSessions(): Promise<string[]> {
-    const pattern = "session:shop:*:creds";
-    const keys = await this.getClient().keys(pattern);
-    return keys.map((key) =>
-      key.replace("session:shop:", "").replace(":creds", "")
-    );
-  }
+  // Redis ahora solo se usa para BullMQ (colas y workers)
+  // Las sesiones de WhatsApp se manejan en MongoDB
 }
 
 // Instancia singleton del servicio

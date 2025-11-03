@@ -1,22 +1,19 @@
 import { Router } from "express";
 import adminShopController from "../../controllers/admin/shop.controller";
-import {
-  authenticateToken,
-  requireAdmin,
-} from "../../middlewares/auth.middleware";
+import { authenticateToken } from "../../middlewares/auth.middleware";
+import { authorize } from "../../middlewares/authorize.middleware";
 
 const router = Router();
 
-// Todas las rutas requieren autenticación y rol de administrador
+// Todas las rutas requieren autenticación
 router.use(authenticateToken);
-router.use(requireAdmin);
 
-// Rutas de tiendas
-router.get("/", adminShopController.listShops);
-router.post("/", adminShopController.createShop);
-router.get("/:id", adminShopController.getShopById);
-router.put("/:id", adminShopController.updateShop);
-router.patch("/:id/toggle-status", adminShopController.toggleShopStatus);
-router.delete("/:id", adminShopController.deleteShop);
+// Rutas de tiendas con autorización basada en permisos
+router.get("/", authorize("shop", "view"), adminShopController.listShops);
+router.post("/", authorize("shop", "create"), adminShopController.createShop);
+router.get("/:id", authorize("shop", "view"), adminShopController.getShopById);
+router.put("/:id", authorize("shop", "update"), adminShopController.updateShop);
+router.patch("/:id/toggle-status", authorize("shop", "update"), adminShopController.toggleShopStatus);
+router.delete("/:id", authorize("shop", "delete"), adminShopController.deleteShop);
 
 export default router;

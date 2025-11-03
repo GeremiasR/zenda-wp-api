@@ -30,22 +30,23 @@ export class FlowService {
   }
 
   /**
+   * @deprecated Este método ya no es válido ya que Flow no tiene phoneNumber
    * Obtener un flujo por número de teléfono
    */
-  public async getFlowByPhoneNumber(
-    phoneNumber: string
-  ): Promise<IFlow | null> {
-    try {
-      return await Flow.findOne({
-        phoneNumber,
-        isActive: true,
-        isDeleted: false,
-      });
-    } catch (error) {
-      console.error("Error al obtener el flujo por número de teléfono:", error);
-      return null;
-    }
-  }
+  // public async getFlowByPhoneNumber(
+  //   phoneNumber: string
+  // ): Promise<IFlow | null> {
+  //   try {
+  //     return await Flow.findOne({
+  //       phoneNumber,
+  //       isActive: true,
+  //       isDeleted: false,
+  //     });
+  //   } catch (error) {
+  //     console.error("Error al obtener el flujo por número de teléfono:", error);
+  //     return null;
+  //   }
+  // }
 
   /**
    * Obtener o crear una sesión de mensajes por flowId
@@ -108,25 +109,15 @@ export class FlowService {
         return { session, flow, isNew: false };
       }
 
-      // Si no existe la sesión, buscar el flujo por el número de destino (to)
-      const flow = await this.getFlowByPhoneNumber(to);
+      // NOTA: En la arquitectura multitenant, el flujo está asociado al shopId
+      // Este método necesita ser refactorizado para usar shopId en lugar de phoneNumber
+      // Por ahora, retornamos null si no existe una sesión previa
+      console.warn(
+        "⚠️ getOrCreateMessageSession: No se encontró sesión existente. " +
+          "Use processMessageByFlowId en su lugar para arquitectura multitenant."
+      );
 
-      if (!flow) {
-        return { session: null, flow: null, isNew: false };
-      }
-
-      // Crear una nueva sesión
-      session = new MessageSession({
-        shopId: flow.shopId,
-        from,
-        to,
-        flowId: flow._id,
-        currentState: flow.initialState,
-      });
-
-      await session.save();
-
-      return { session, flow, isNew: true };
+      return { session: null, flow: null, isNew: false };
     } catch (error) {
       console.error("Error al obtener o crear sesión de mensajes:", error);
       return { session: null, flow: null, isNew: false };
@@ -334,7 +325,6 @@ export class FlowService {
     const mockFlow = {
       name: "Flujo de ejemplo",
       description: "Flujo de ejemplo para una tienda de estética",
-      phoneNumber: "5491123456789", // Número de ejemplo
       shopId: new mongoose.Types.ObjectId(shopId),
       isActive: true,
       isDeleted: false,
@@ -492,9 +482,9 @@ export class FlowService {
       },
     };
 
-    // Verificar si ya existe un flujo similar
+    // Verificar si ya existe un flujo para esta tienda
     const existingFlow = await Flow.findOne({
-      phoneNumber: mockFlow.phoneNumber,
+      name: mockFlow.name,
       shopId: mockFlow.shopId,
       isDeleted: false,
     });

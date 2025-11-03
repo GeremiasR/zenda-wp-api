@@ -5,9 +5,11 @@ import {
   WhatsAppProviderType,
   WhatsAppProviderFactory,
 } from "../providers/whatsapp";
-import { redisService } from "./redis.service";
+// Redis solo se usa para BullMQ (colas), no para sesiones de WhatsApp
 import { flowService } from "./flow.service";
 import WhatsAppSession from "../models/whatsapp-session.model";
+import { messageQueueProducer } from "../queue/producer";
+import { messageQueueConsumer } from "../queue/consumer";
 
 export class WhatsAppMultitenantManagerService {
   private activeSessions: Map<string, IWhatsAppProvider> = new Map();
@@ -27,19 +29,78 @@ export class WhatsAppMultitenantManagerService {
     try {
       // Verificar si ya existe una sesión activa
       if (this.activeSessions.has(shopId)) {
-        const qr = await redisService.getQRCode(shopId);
+        // QR no se almacena, solo se emite via callbacks
         return {
           message: "Sesión ya activa",
           sessionId: `shop_${shopId}`,
-          qr: qr || undefined,
+          qr: undefined,
         };
       }
 
-      // Verificar si hay una sesión en Redis
-      const isActive = await redisService.isSessionActive(shopId);
-      if (isActive) {
-        // Restaurar sesión existente
-        return await this.restoreSession(shopId);
+      // Verificar si hay sesión con authState válido en MongoDB
+      const session = await WhatsAppSession.findOne({
+        shopId,
+        provider: "baileys",
+      });
+
+      if (session?.data) {
+        // Verificar que las credenciales son válidas (tiene creds.me.id)
+        const authState = session.getAuthState();
+        if (authState?.creds?.me?.id) {
+          // Restaurar sesión existente (hay authState válido en MongoDB)
+          console.log(
+            `♻️ Sesión existente con authState válido encontrada en MongoDB para shop ${shopId}. Restaurando...`
+          );
+          return await this.restoreSession(shopId);
+        } else {
+          // Sesión sin credenciales válidas, limpiar
+          console.log(
+            `🧹 Sesión sin credenciales válidas encontrada para shop ${shopId}. Limpiando...`
+          );
+          await WhatsAppSession.findOneAndUpdate(
+            { _id: session._id },
+            { $unset: { data: "", number: "" }, isConnected: false },
+            { upsert: false }
+          ).catch(() => {});
+        }
+      } else {
+        // No hay sesión o no tiene authState, limpiar sesiones huérfanas
+        console.log(
+          `🧹 No hay authState válido en MongoDB para shop ${shopId}. Limpiando sesiones huérfanas...`
+        );
+
+        // Buscar todas las sesiones del shopId sin authState válido
+        const orphanSessions = await WhatsAppSession.find({
+          shopId,
+          $or: [{ data: { $exists: false } }, { data: "" }, { data: null }],
+        }).catch(() => []);
+
+        if (orphanSessions.length > 0) {
+          console.log(
+            `🗑️ Eliminando ${orphanSessions.length} sesión(es) huérfana(s) del shop ${shopId}...`
+          );
+          // Eliminar completamente todas las sesiones huérfanas
+          await WhatsAppSession.deleteMany({
+            _id: { $in: orphanSessions.map((s) => s._id) },
+          }).catch(() => {});
+          console.log(`✅ Sesiones huérfanas eliminadas para shop ${shopId}`);
+        }
+
+        // También limpiar cualquier sesión activa en memoria
+        if (this.activeSessions.has(shopId)) {
+          const oldProvider = this.activeSessions.get(shopId);
+          if (oldProvider) {
+            try {
+              await oldProvider.disconnect();
+            } catch (e) {
+              // Ignorar errores al desconectar
+            }
+          }
+          this.activeSessions.delete(shopId);
+          console.log(
+            `🧹 Sesión activa en memoria removida para shop ${shopId}`
+          );
+        }
       }
 
       // Crear nueva sesión
@@ -96,12 +157,11 @@ export class WhatsAppMultitenantManagerService {
       // Esperar un poco para que se genere el QR
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      // Obtener QR
-      const qr = await redisService.getQRCode(shopId);
-
+      // QR no se almacena, solo se emite via callbacks
+      // El QR se retornará a través del callback si está disponible
       return {
-        qr: qr || undefined,
-        message: qr ? "QR generado exitosamente" : "Esperando QR...",
+        qr: undefined,
+        message: "Esperando QR...",
         sessionId,
       };
     } catch (error) {
@@ -111,7 +171,8 @@ export class WhatsAppMultitenantManagerService {
   }
 
   /**
-   * Restaura una sesión existente desde Redis
+   * Restaura una sesión existente desde MongoDB
+   * IMPORTANTE: Solo restaura si HAY authState válido en MongoDB
    */
   private async restoreSession(shopId: string): Promise<{
     qr?: string;
@@ -119,18 +180,45 @@ export class WhatsAppMultitenantManagerService {
     sessionId: string;
   }> {
     try {
-      // Buscar la sesión en MongoDB para obtener flowId
+      // Buscar la sesión en MongoDB con authState válido
       const session = await WhatsAppSession.findOne({
         shopId,
-        isConnected: true,
+        provider: "baileys",
+        $and: [
+          { data: { $exists: true } },
+          { data: { $ne: null } },
+          { data: { $ne: "" } },
+        ],
       });
-      if (!session) {
-        throw new Error(`No se encontró sesión activa para shop ${shopId}`);
+
+      if (!session || !session.data) {
+        throw new Error(
+          `No hay authState válido en MongoDB para shop ${shopId}. No se puede restaurar.`
+        );
+      }
+
+      console.log(
+        `✅ authState encontrado en MongoDB para shop ${shopId}. Restaurando sesión...`
+      );
+
+      // Verificar que el authState tiene credenciales válidas
+      const authState = session.getAuthState();
+      if (!authState || !authState.creds?.me?.id) {
+        throw new Error(
+          `authState encontrado pero sin credenciales válidas para shop ${shopId}.`
+        );
       }
 
       const sessionId = session.sessionId;
-      const phoneNumber = session.phoneNumber;
+      const phoneNumber =
+        session.phoneNumber || session.number || `shop_${shopId}_phone`;
       const flowId = session.flowId?.toString() || "";
+
+      if (!flowId) {
+        throw new Error(
+          `La sesión para shop ${shopId} no tiene flowId asociado. Por favor, activa WhatsApp nuevamente.`
+        );
+      }
 
       const provider = new BaileysMultitenantProvider(
         {
@@ -146,10 +234,9 @@ export class WhatsAppMultitenantManagerService {
 
       await provider.connect();
 
-      const qr = await redisService.getQRCode(shopId);
-
+      // QR no se almacena, solo se emite via callbacks
       return {
-        qr: qr || undefined,
+        qr: undefined,
         message: "Sesión restaurada",
         sessionId,
       };
@@ -174,21 +261,20 @@ export class WhatsAppMultitenantManagerService {
       const isActive = !!provider;
       const isConnected = provider ? provider.isConnected() : false;
 
-      let qr: string | null = null;
-      let phoneNumber: string | undefined;
-      let lastConnection: string | undefined;
+      // Obtener información desde MongoDB
+      const session = await WhatsAppSession.findOne({
+        shopId,
+        provider: "baileys",
+      });
 
-      if (isActive) {
-        qr = await redisService.getQRCode(shopId);
-        const sessionData = await redisService.getSessionData(shopId);
-        phoneNumber = sessionData?.number;
-        lastConnection = sessionData?.lastConnection;
-      }
+      // QR no se almacena
+      const phoneNumber = session?.number || session?.phoneNumber;
+      const lastConnection = session?.lastSeen?.toISOString();
 
       return {
         isActive,
         isConnected,
-        qr: qr || undefined,
+        qr: undefined,
         phoneNumber,
         lastConnection,
       };
@@ -203,27 +289,50 @@ export class WhatsAppMultitenantManagerService {
 
   /**
    * Desactiva una sesión de shop
+   * Elimina completamente la sesión de Redis, MongoDB y memoria
    */
   public async deactivateShopSession(shopId: string): Promise<void> {
     try {
+      console.log(`🛑 Desactivando sesión de WhatsApp para shop ${shopId}...`);
+
+      // Desconectar el proveedor
       const provider = this.activeSessions.get(shopId);
       if (provider) {
-        await provider.disconnect();
+        try {
+          await provider.disconnect();
+        } catch (e) {
+          console.error(
+            `Error al desconectar provider para shop ${shopId}:`,
+            e
+          );
+        }
         this.activeSessions.delete(shopId);
+        console.log(`🧹 Sesión removida de memoria para shop ${shopId}`);
       }
 
-      // Limpiar datos de Redis
-      await redisService.deleteSession(shopId);
+      // Limpiar authState de MongoDB (mantener documento, solo limpiar data)
+      const updated = await WhatsAppSession.updateMany(
+        { shopId, provider: "baileys" },
+        { $unset: { data: "", number: "" }, isConnected: false },
+        { upsert: false }
+      ).catch(() => null);
 
-      // Actualizar en MongoDB
-      await WhatsAppSession.findOneAndUpdate(
-        { shopId },
-        { isConnected: false }
+      if (updated) {
+        console.log(
+          `🧹 authState limpiado de MongoDB para shop ${shopId} (${
+            updated.modifiedCount || 0
+          } documento(s) actualizado(s))`
+        );
+      }
+
+      console.log(
+        `✅ Sesión de WhatsApp completamente desactivada para shop ${shopId}`
       );
-
-      console.log(`Sesión desactivada para shop ${shopId}`);
     } catch (error) {
-      console.error(`Error al desactivar sesión para shop ${shopId}:`, error);
+      console.error(
+        `❌ Error al desactivar sesión para shop ${shopId}:`,
+        error
+      );
       throw error;
     }
   }
@@ -287,12 +396,17 @@ export class WhatsAppMultitenantManagerService {
     }[] = [];
 
     for (const [shopId, provider] of this.activeSessions) {
-      const sessionData = await redisService.getSessionData(shopId);
+      // Obtener información desde MongoDB
+      const session = await WhatsAppSession.findOne({
+        shopId,
+        provider: "baileys",
+      }).catch(() => null);
+
       sessions.push({
         shopId,
         isConnected: provider.isConnected(),
-        phoneNumber: sessionData?.number,
-        lastConnection: sessionData?.lastConnection,
+        phoneNumber: session?.number || session?.phoneNumber,
+        lastConnection: session?.lastSeen?.toISOString(),
       });
     }
 
@@ -307,25 +421,25 @@ export class WhatsAppMultitenantManagerService {
     shopId: string,
     flowId: string
   ): void {
-    // Callback para mensajes entrantes
+    // Callback para mensajes entrantes - ENCOLAR en lugar de procesar directamente
     provider.onMessage(async (message: IWhatsAppMessage) => {
       try {
-        console.log(`Mensaje recibido en shop ${shopId}:`, message);
+        console.log(`📨 Mensaje recibido en shop ${shopId}:`, message.text);
 
-        // Procesar el mensaje a través del motor de flujos usando flowId
-        const { response } = await flowService.processMessageByFlowId(
-          message.from,
-          message.to,
-          message.text,
-          flowId
-        );
+        // Encolar el mensaje para procesamiento asíncrono
+        await messageQueueProducer.enqueueMessage({
+          shopId,
+          flowId,
+          message,
+          providerId: provider.providerId,
+        });
 
-        // Enviar la respuesta generada por el motor de flujos
-        if (response) {
-          await provider.sendMessage(message.from, response);
-        }
+        console.log(`✅ Mensaje encolado para shop ${shopId}`);
+
+        // Asegurar que hay un worker para esta tienda
+        await messageQueueConsumer.addWorkerForShop(shopId);
       } catch (error) {
-        console.error(`Error al procesar mensaje en shop ${shopId}:`, error);
+        console.error(`❌ Error al encolar mensaje en shop ${shopId}:`, error);
       }
     });
 
@@ -337,24 +451,22 @@ export class WhatsAppMultitenantManagerService {
           status
         );
 
-        // Obtener el número de teléfono desde Redis si está conectado
-        let phoneNumber = `shop_${shopId}_phone`; // Placeholder por defecto
-        if (status.isConnected) {
-          const sessionData = await redisService.getSessionData(shopId);
-          phoneNumber = sessionData?.number || phoneNumber;
-          console.log(
-            `📱 Número actualizado en MongoDB para shop ${shopId}: ${phoneNumber}`
-          );
-        }
+        // Obtener el número de teléfono desde la sesión en MongoDB
+        const session = await WhatsAppSession.findOne({
+          shopId,
+          provider: "baileys",
+        }).catch(() => null);
 
-        // Actualizar estado en MongoDB
+        let phoneNumber =
+          session?.number || session?.phoneNumber || `shop_${shopId}_phone`;
+
+        // Actualizar estado en MongoDB (QR no se almacena)
         await WhatsAppSession.findOneAndUpdate(
           { shopId },
           {
             isConnected: status.isConnected,
             lastSeen: new Date(),
-            qrCode: status.qrCode,
-            phoneNumber: phoneNumber,
+            number: phoneNumber,
           },
           { upsert: true }
         );
@@ -367,36 +479,147 @@ export class WhatsAppMultitenantManagerService {
     });
 
     // Callback para códigos QR
+    // QR no se almacena (duración de 1 minuto, solo en memoria/callbacks)
     provider.onQRCode(async (qr) => {
       try {
         console.log(`Código QR generado para shop ${shopId}`);
-        await redisService.saveQRCode(shopId, qr);
+        // QR solo se emite via callback, no se guarda
       } catch (error) {
-        console.error(`Error al guardar código QR para shop ${shopId}:`, error);
+        console.error(
+          `Error al procesar código QR para shop ${shopId}:`,
+          error
+        );
       }
     });
   }
 
   /**
+   * Verifica si las credenciales son válidas (tiene authState con creds.me.id)
+   * Las credenciales válidas tienen campos específicos que indican que fueron autenticadas
+   */
+  private async areCredentialsValid(shopId: string): Promise<boolean> {
+    try {
+      const session = await WhatsAppSession.findOne({
+        shopId,
+        provider: "baileys",
+        $and: [
+          { data: { $exists: true } },
+          { data: { $ne: null } },
+          { data: { $ne: "" } },
+        ],
+      });
+
+      if (!session || !session.data) {
+        return false;
+      }
+
+      // Verificar que el authState tiene credenciales válidas
+      const authState = session.getAuthState();
+      if (!authState || !authState.creds) {
+        return false;
+      }
+
+      // Las credenciales válidas tienen el campo "me" que contiene información del usuario autenticado
+      // Credenciales válidas tienen "me" (con id, name, etc.) después de escanear el QR
+      // Credenciales vacías de initAuthCreds() NO tienen "me"
+      const hasMe = !!(
+        authState.creds.me &&
+        typeof authState.creds.me === "object" &&
+        authState.creds.me.id
+      );
+
+      // Si tiene "me" con "id", son credenciales válidas y autenticadas
+      return hasMe;
+    } catch (error) {
+      console.error(
+        `Error al verificar credenciales para shop ${shopId}:`,
+        error
+      );
+      return false;
+    }
+  }
+
+  /**
    * Inicializa todas las sesiones existentes al arrancar el servidor
+   * IMPORTANTE: Solo restaura sesiones AUTENTICADAS (que tienen creds.me.id)
+   * NO restaura sesiones incompletas que nunca se autenticaron (sin QR escaneado)
    */
   public async initializeExistingSessions(): Promise<void> {
     try {
-      console.log("🔄 Inicializando sesiones existentes...");
-      const activeShops = await redisService.getAllActiveSessions();
       console.log(
-        `Sesiones con credenciales encontradas: ${activeShops.length}`
+        "🔄 Inicializando sesiones existentes al iniciar servidor..."
       );
 
-      if (activeShops.length === 0) {
-        console.log("ℹ️  No hay sesiones activas para restaurar");
+      // Obtener sesiones que tienen authState válido en MongoDB
+      const sessions = await WhatsAppSession.find({
+        provider: "baileys",
+        $and: [
+          { data: { $exists: true } },
+          { data: { $ne: null } },
+          { data: { $ne: "" } },
+        ],
+      }).catch(() => []);
+
+      console.log(`📋 Sesiones con authState en MongoDB: ${sessions.length}`);
+
+      if (sessions.length === 0) {
+        console.log(
+          "ℹ️  No hay sesiones con authState válido en MongoDB. Limpiando sesiones huérfanas..."
+        );
+
+        // Limpiar sesiones huérfanas sin authState válido
+        const orphanSessions = await WhatsAppSession.find({
+          provider: "baileys",
+          $or: [{ data: { $exists: false } }, { data: "" }, { data: null }],
+        }).catch(() => []);
+
+        if (orphanSessions.length > 0) {
+          await WhatsAppSession.deleteMany({
+            _id: { $in: orphanSessions.map((s) => s._id) },
+          }).catch(() => {});
+          console.log(
+            `✅ ${orphanSessions.length} sesión(es) huérfana(s) eliminada(s)`
+          );
+        }
+
         return;
       }
 
-      for (const shopId of activeShops) {
+      // Restaurar solo sesiones AUTENTICADAS (que tienen creds.me.id)
+      let restoredCount = 0;
+      let cleanedCount = 0;
+
+      for (const session of sessions) {
+        if (!session.shopId) {
+          continue;
+        }
+
+        const shopId = session.shopId;
+
         try {
+          // Verificar que el authState tiene credenciales VÁLIDAS y AUTENTICADAS
+          const authState = session.getAuthState();
+          if (!authState || !authState.creds?.me?.id) {
+            console.log(
+              `⚠️ Shop ${shopId} tiene authState pero NO está autenticado (nunca se escaneó QR). Limpiando...`
+            );
+            // Limpiar authState inválido/no autenticado
+            await WhatsAppSession.findOneAndUpdate(
+              { _id: session._id },
+              { $unset: { data: "", number: "" }, isConnected: false },
+              { upsert: false }
+            ).catch(() => {});
+            cleanedCount++;
+            continue;
+          }
+
+          // Si las credenciales son válidas y autenticadas, restaurar la sesión
+          console.log(
+            `♻️ Restaurando sesión autenticada para shop ${shopId}...`
+          );
           await this.restoreSession(shopId);
-          console.log(`✅ Sesión restaurada para shop ${shopId}`);
+          restoredCount++;
+          console.log(`✅ Sesión restaurada exitosamente para shop ${shopId}`);
         } catch (error) {
           console.error(
             `❌ Error al restaurar sesión para shop ${shopId}:`,
@@ -404,7 +627,12 @@ export class WhatsAppMultitenantManagerService {
           );
           // Limpiar la sesión fallida
           try {
-            await redisService.deleteSession(shopId);
+            await WhatsAppSession.findOneAndUpdate(
+              { _id: session._id },
+              { $unset: { data: "", number: "" }, isConnected: false },
+              { upsert: false }
+            ).catch(() => {});
+            cleanedCount++;
             console.log(`🧹 Sesión fallida limpiada para shop ${shopId}`);
           } catch (cleanupError) {
             console.error(
@@ -413,6 +641,13 @@ export class WhatsAppMultitenantManagerService {
             );
           }
         }
+      }
+
+      console.log(
+        `✅ ${restoredCount} sesión(es) autenticada(s) restaurada(s)`
+      );
+      if (cleanedCount > 0) {
+        console.log(`🧹 ${cleanedCount} sesión(es) incompleta(s) limpiada(s)`);
       }
       console.log("✅ Inicialización de sesiones completada");
     } catch (error) {

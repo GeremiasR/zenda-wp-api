@@ -1,21 +1,19 @@
 import { Router } from "express";
 import adminUserController from "../../controllers/admin/user.controller";
-import {
-  authenticateToken,
-  requireAdmin,
-} from "../../middlewares/auth.middleware";
+import { authenticateToken } from "../../middlewares/auth.middleware";
+import { authorize } from "../../middlewares/authorize.middleware";
 
 const router = Router();
 
-// Todas las rutas requieren autenticación y rol de administrador
+// Todas las rutas requieren autenticación
 router.use(authenticateToken);
-router.use(requireAdmin);
 
-// Rutas de usuarios
-router.get("/", adminUserController.listUsers);
-router.post("/", adminUserController.createUser);
-router.get("/:id", adminUserController.getUserById);
-router.put("/:id", adminUserController.updateUser);
-router.patch("/:id/toggle-status", adminUserController.toggleUserStatus);
+// Rutas de usuarios con autorización basada en permisos
+router.get("/", authorize("user", "view"), adminUserController.listUsers);
+router.post("/", authorize("user", "create"), adminUserController.createUser);
+router.get("/available-roles", authorize("user", "view"), adminUserController.getAvailableRoles);
+router.get("/:id", authorize("user", "view"), adminUserController.getUserById);
+router.put("/:id", authorize("user", "update"), adminUserController.updateUser);
+router.patch("/:id/toggle-status", authorize("user", "update"), adminUserController.toggleUserStatus);
 
 export default router;

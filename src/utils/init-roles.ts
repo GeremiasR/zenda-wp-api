@@ -1,25 +1,52 @@
-import { Role } from "../models";
+import { Role, IRoleModule } from "../models";
 
-// Roles por defecto del sistema
+// Roles por defecto del sistema con estructura de módulos y acciones
 const defaultRoles = [
   {
     code: "ADMIN",
     label: "Administrador",
+    modules: [
+      // Administrador tiene acceso completo a todos los módulos
+      { name: "user", actions: ["view", "create", "update", "delete", "manage"] },
+      { name: "role", actions: ["view", "create", "update", "delete", "manage"] },
+      { name: "shop", actions: ["view", "create", "update", "delete", "manage"] },
+      { name: "flow", actions: ["view", "create", "update", "delete", "manage"] },
+      { name: "orders", actions: ["view", "create", "update", "delete", "manage"] },
+      { name: "transactions", actions: ["view", "create", "update", "delete", "manage"] },
+      { name: "whatsapp", actions: ["view", "create", "update", "delete", "manage"] },
+    ] as IRoleModule[],
     isActive: true,
   },
   {
     code: "SHOPADMIN",
     label: "Administrador de Tienda",
+    modules: [
+      { name: "user", actions: ["view", "create", "update"] },
+      { name: "shop", actions: ["view", "update"] },
+      { name: "flow", actions: ["view", "create", "update", "delete"] },
+      { name: "orders", actions: ["view", "create", "update", "delete", "manage"] },
+      { name: "transactions", actions: ["view", "create", "update", "manage"] },
+      { name: "whatsapp", actions: ["view", "create", "update", "manage"] },
+    ] as IRoleModule[],
     isActive: true,
   },
   {
     code: "SHOPUSER",
     label: "Usuario de Tienda",
+    modules: [
+      { name: "orders", actions: ["view", "create", "update"] },
+      { name: "transactions", actions: ["view", "create"] },
+      { name: "whatsapp", actions: ["view"] },
+    ] as IRoleModule[],
     isActive: true,
   },
   {
     code: "CUSTOMER",
     label: "Cliente",
+    modules: [
+      { name: "orders", actions: ["view"] },
+      { name: "transactions", actions: ["view"] },
+    ] as IRoleModule[],
     isActive: true,
   },
 ];

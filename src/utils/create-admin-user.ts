@@ -42,7 +42,7 @@ export async function createAdminUser(data: AdminUserData): Promise<void> {
       email: data.email,
       password: data.password, // El middleware pre-save del modelo lo hasheará
       shopId: shop._id,
-      roleCode: "ADMIN",
+      roles: ["ADMIN"],
       isActive: true,
     });
 

@@ -33,7 +33,6 @@ class AdminFlowController {
         filters.$or = [
           { name: { $regex: search, $options: "i" } },
           { description: { $regex: search, $options: "i" } },
-          { phoneNumber: { $regex: search, $options: "i" } },
         ];
       }
 
@@ -80,7 +79,6 @@ class AdminFlowController {
       const {
         name,
         description,
-        phoneNumber,
         shopId,
         initialState,
         states,
@@ -88,16 +86,10 @@ class AdminFlowController {
       } = req.body;
 
       // Validar datos de entrada
-      if (!name || !phoneNumber || !shopId || !initialState || !states) {
+      if (!name || !shopId || !initialState || !states) {
         throw Boom.badRequest(
-          "Nombre, phoneNumber, shopId, initialState y states son requeridos"
+          "Nombre, shopId, initialState y states son requeridos"
         );
-      }
-
-      // Validar formato de teléfono
-      const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-      if (!phoneRegex.test(phoneNumber)) {
-        throw Boom.badRequest("Formato de número de teléfono inválido");
       }
 
       // Verificar que la tienda existe
@@ -117,7 +109,6 @@ class AdminFlowController {
       const flow = new Flow({
         name,
         description,
-        phoneNumber,
         shopId,
         initialState,
         states,
@@ -175,27 +166,12 @@ class AdminFlowController {
   ): Promise<void> {
     try {
       const { id } = req.params;
-      const {
-        name,
-        description,
-        phoneNumber,
-        shopId,
-        initialState,
-        states,
-        isActive,
-      } = req.body;
+      const { name, description, shopId, initialState, states, isActive } =
+        req.body;
 
       const flow = await Flow.findOne({ _id: id, isDeleted: false });
       if (!flow) {
         throw Boom.notFound("Flujo no encontrado");
-      }
-
-      // Validar formato de teléfono si se proporciona
-      if (phoneNumber) {
-        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-        if (!phoneRegex.test(phoneNumber)) {
-          throw Boom.badRequest("Formato de número de teléfono inválido");
-        }
       }
 
       // Verificar que la tienda existe si se proporciona
@@ -216,7 +192,6 @@ class AdminFlowController {
       // Actualizar campos
       if (name !== undefined) flow.name = name;
       if (description !== undefined) flow.description = description;
-      // phoneNumber ya no existe en el modelo
       if (shopId !== undefined) flow.shopId = shopId;
       if (initialState !== undefined) flow.initialState = initialState;
       if (states !== undefined) flow.states = states;

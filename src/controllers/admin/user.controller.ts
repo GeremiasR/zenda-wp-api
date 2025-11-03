@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import Boom from "@hapi/boom";
 import { User, Shop } from "../../models";
 import { IUser } from "../../models";
+import { roleService } from "../../services/role.service";
 
 class AdminUserController {
   async listUsers(
@@ -13,7 +14,7 @@ class AdminUserController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const isActive = req.query.isActive as string;
-      const roleCode = req.query.roleCode as string;
+      const role = req.query.role as string; // Cambiar de roleCode a role
       const shopId = req.query.shopId as string;
       const search = req.query.search as string;
 
@@ -24,8 +25,9 @@ class AdminUserController {
         filters.isActive = isActive === "true";
       }
 
-      if (roleCode) {
-        filters.roleCode = roleCode;
+      if (role) {
+        // Filtrar usuarios que tengan este rol en su array de roles
+        filters.roles = role;
       }
 
       if (shopId) {
@@ -85,13 +87,28 @@ class AdminUserController {
         email,
         password,
         shopId,
-        roleCode,
+        roles, // Cambiar de roleCode a roles (array)
         isActive = true,
       } = req.body;
 
       // Validar datos de entrada
-      if (!username || !email || !password || !shopId || !roleCode) {
+      if (!username || !email || !password || !shopId || !roles) {
         throw Boom.badRequest("Todos los campos son requeridos");
+      }
+
+      // Validar que roles sea un array
+      if (!Array.isArray(roles) || roles.length === 0) {
+        throw Boom.badRequest("Roles debe ser un array con al menos un rol");
+      }
+
+      // Verificar que todos los roles existen
+      for (const roleCode of roles) {
+        const role = await roleService.getRoleByCode(roleCode);
+        if (!role || !role.isActive) {
+          throw Boom.badRequest(
+            `El rol '${roleCode}' no existe o está inactivo`
+          );
+        }
       }
 
       // Validar formato de email
@@ -120,7 +137,7 @@ class AdminUserController {
         email,
         password,
         shopId,
-        roleCode,
+        roles, // Usar array de roles
         isActive,
       });
 
@@ -175,7 +192,7 @@ class AdminUserController {
   ): Promise<void> {
     try {
       const { id } = req.params;
-      const { username, email, shopId, roleCode, isActive } = req.body;
+      const { username, email, shopId, roles, isActive } = req.body; // Cambiar de roleCode a roles
 
       const user = await User.findById(id);
       if (!user) {
@@ -212,11 +229,28 @@ class AdminUserController {
         }
       }
 
+      // Validar roles si se proporcionan
+      if (roles !== undefined) {
+        if (!Array.isArray(roles) || roles.length === 0) {
+          throw Boom.badRequest("Roles debe ser un array con al menos un rol");
+        }
+
+        // Verificar que todos los roles existen
+        for (const roleCode of roles) {
+          const role = await roleService.getRoleByCode(roleCode);
+          if (!role || !role.isActive) {
+            throw Boom.badRequest(
+              `El rol '${roleCode}' no existe o está inactivo`
+            );
+          }
+        }
+      }
+
       // Actualizar campos
       if (username !== undefined) user.username = username;
       if (email !== undefined) user.email = email;
       if (shopId !== undefined) user.shopId = shopId;
-      if (roleCode !== undefined) user.roleCode = roleCode;
+      if (roles !== undefined) user.roles = roles; // Usar array de roles
       if (isActive !== undefined) user.isActive = isActive;
 
       await user.save();
@@ -270,6 +304,34 @@ class AdminUserController {
         success: true,
         message: `Usuario ${statusText} exitosamente`,
         data: updatedUser,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Lista los roles disponibles para asignar a usuarios
+   * GET /api/admin/users/available-roles
+   */
+  async getAvailableRoles(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const roles = await roleService.listRoles(false); // Solo roles activos
+
+      // Formatear para el frontend
+      const rolesFormatted = roles.map((role) => ({
+        code: role.code,
+        label: role.label,
+      }));
+
+      res.status(200).json({
+        success: true,
+        message: "Roles disponibles obtenidos exitosamente",
+        data: rolesFormatted,
       });
     } catch (error) {
       next(error);

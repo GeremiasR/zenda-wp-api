@@ -11,7 +11,7 @@ export class WhatsAppMultitenantController {
   ): Promise<void> {
     try {
       const { shopId, flowId } = req.body;
-      const user = (req as any).user; // Usuario autenticado
+      const tokenPayload = req.tokenPayload; // Payload del token JWT
 
       if (!shopId || !flowId) {
         res.status(400).json({
@@ -22,7 +22,21 @@ export class WhatsAppMultitenantController {
       }
 
       // Verificar que el usuario tenga permisos para este shop
-      if (user.shopId !== shopId && user.roleCode !== "SHOPADMIN") {
+      if (!tokenPayload) {
+        res.status(401).json({
+          success: false,
+          message: "Autenticación requerida",
+        });
+        return;
+      }
+
+      // Los administradores pueden activar cualquier shop
+      const userRoles = tokenPayload.roles || [];
+      if (
+        !userRoles.includes("ADMIN") &&
+        tokenPayload.shopId !== shopId &&
+        !userRoles.includes("SHOPADMIN")
+      ) {
         res.status(403).json({
           success: false,
           message: "No tienes permisos para activar WhatsApp en este shop",
@@ -64,7 +78,7 @@ export class WhatsAppMultitenantController {
   ): Promise<void> {
     try {
       const { shopId } = req.params;
-      const user = (req as any).user;
+      const tokenPayload = req.tokenPayload;
 
       if (!shopId) {
         res.status(400).json({
@@ -74,8 +88,17 @@ export class WhatsAppMultitenantController {
         return;
       }
 
+      if (!tokenPayload) {
+        res.status(401).json({
+          success: false,
+          message: "Autenticación requerida",
+        });
+        return;
+      }
+
       // Verificar permisos
-      if (user.shopId !== shopId && !user.isAdmin) {
+      const userRoles = tokenPayload.roles || [];
+      if (!userRoles.includes("ADMIN") && tokenPayload.shopId !== shopId) {
         res.status(403).json({
           success: false,
           message: "No tienes permisos para ver el estado de este shop",
@@ -113,7 +136,7 @@ export class WhatsAppMultitenantController {
   ): Promise<void> {
     try {
       const { shopId } = req.params;
-      const user = (req as any).user;
+      const tokenPayload = req.tokenPayload;
 
       if (!shopId) {
         res.status(400).json({
@@ -123,8 +146,17 @@ export class WhatsAppMultitenantController {
         return;
       }
 
+      if (!tokenPayload) {
+        res.status(401).json({
+          success: false,
+          message: "Autenticación requerida",
+        });
+        return;
+      }
+
       // Verificar permisos
-      if (user.shopId !== shopId && !user.isAdmin) {
+      const userRoles = tokenPayload.roles || [];
+      if (!userRoles.includes("ADMIN") && tokenPayload.shopId !== shopId) {
         res.status(403).json({
           success: false,
           message: "No tienes permisos para desactivar WhatsApp en este shop",
@@ -155,7 +187,7 @@ export class WhatsAppMultitenantController {
   public async sendMessageFromShop(req: Request, res: Response): Promise<void> {
     try {
       const { shopId, jid, message } = req.body;
-      const user = (req as any).user;
+      const tokenPayload = req.tokenPayload;
 
       if (!shopId || !jid || !message) {
         res.status(400).json({
@@ -165,8 +197,17 @@ export class WhatsAppMultitenantController {
         return;
       }
 
+      if (!tokenPayload) {
+        res.status(401).json({
+          success: false,
+          message: "Autenticación requerida",
+        });
+        return;
+      }
+
       // Verificar permisos
-      if (user.shopId !== shopId && !user.isAdmin) {
+      const userRoles = tokenPayload.roles || [];
+      if (!userRoles.includes("ADMIN") && tokenPayload.shopId !== shopId) {
         res.status(403).json({
           success: false,
           message: "No tienes permisos para enviar mensajes desde este shop",
@@ -204,7 +245,7 @@ export class WhatsAppMultitenantController {
   ): Promise<void> {
     try {
       const { shopId, groupJid, message } = req.body;
-      const user = (req as any).user;
+      const tokenPayload = req.tokenPayload;
 
       if (!shopId || !groupJid || !message) {
         res.status(400).json({
@@ -214,8 +255,17 @@ export class WhatsAppMultitenantController {
         return;
       }
 
+      if (!tokenPayload) {
+        res.status(401).json({
+          success: false,
+          message: "Autenticación requerida",
+        });
+        return;
+      }
+
       // Verificar permisos
-      if (user.shopId !== shopId && !user.isAdmin) {
+      const userRoles = tokenPayload.roles || [];
+      if (!userRoles.includes("ADMIN") && tokenPayload.shopId !== shopId) {
         res.status(403).json({
           success: false,
           message: "No tienes permisos para enviar mensajes desde este shop",
@@ -252,10 +302,19 @@ export class WhatsAppMultitenantController {
     res: Response
   ): Promise<void> {
     try {
-      const user = (req as any).user;
+      const tokenPayload = req.tokenPayload;
+
+      if (!tokenPayload) {
+        res.status(401).json({
+          success: false,
+          message: "Autenticación requerida",
+        });
+        return;
+      }
 
       // Solo admins pueden ver todas las sesiones
-      if (!user.isAdmin) {
+      const userRoles = tokenPayload.roles || [];
+      if (!userRoles.includes("ADMIN")) {
         res.status(403).json({
           success: false,
           message: "No tienes permisos para ver todas las sesiones",
@@ -287,7 +346,7 @@ export class WhatsAppMultitenantController {
   public async getShopQR(req: Request, res: Response): Promise<void> {
     try {
       const { shopId } = req.params;
-      const user = (req as any).user;
+      const tokenPayload = req.tokenPayload;
 
       if (!shopId) {
         res.status(400).json({
@@ -297,8 +356,17 @@ export class WhatsAppMultitenantController {
         return;
       }
 
+      if (!tokenPayload) {
+        res.status(401).json({
+          success: false,
+          message: "Autenticación requerida",
+        });
+        return;
+      }
+
       // Verificar permisos
-      if (user.shopId !== shopId && !user.isAdmin) {
+      const userRoles = tokenPayload.roles || [];
+      if (!userRoles.includes("ADMIN") && tokenPayload.shopId !== shopId) {
         res.status(403).json({
           success: false,
           message: "No tienes permisos para ver el QR de este shop",

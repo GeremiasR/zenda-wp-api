@@ -7,7 +7,7 @@ export interface IUser extends Document {
   email: string;
   shopId: mongoose.Types.ObjectId;
   password: string;
-  roleCode: string;
+  roles: string[]; // Array de códigos de roles (referencias a Role.code)
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -41,11 +41,10 @@ const UserSchema = new Schema<IUser>(
       required: true,
       minlength: 6,
     },
-    roleCode: {
-      type: String,
+    roles: {
+      type: [String],
       required: true,
-      enum: ["ADMIN", "SHOPADMIN", "SHOPUSER", "CUSTOMER"],
-      default: "CUSTOMER",
+      default: [],
     },
     isActive: {
       type: Boolean,
