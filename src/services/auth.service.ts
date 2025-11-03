@@ -23,6 +23,13 @@ export interface TokenPayload {
 export interface AuthTokens {
   access_token: string;
   refresh_token: string;
+  user: {
+    id: string;
+    email: string;
+    roles: string[];
+    permissions: Record<string, string[]>;
+    shopId: string;
+  };
 }
 
 export interface LoginCredentials {
@@ -142,6 +149,13 @@ class AuthService {
     return {
       access_token: accessToken,
       refresh_token: refreshTokenValue,
+      user: {
+        id: (user._id as any).toString(),
+        email: user.email,
+        roles: userRoles,
+        permissions: permissions?.permissions || {},
+        shopId: (user.shopId as any)._id.toString(),
+      },
     };
   }
 
@@ -216,6 +230,13 @@ class AuthService {
     return {
       access_token: newAccessToken,
       refresh_token: newRefreshTokenValue,
+      user: {
+        id: (user._id as any).toString(),
+        email: user.email,
+        roles: userRoles,
+        permissions: permissions?.permissions || {},
+        shopId: (user.shopId as any).toString(),
+      },
     };
   }
 

@@ -175,11 +175,13 @@ class AuthController {
       }
 
       // Obtener información del usuario sin la contraseña
+      // Incluir permisos desde el token payload (ya que está disponible sin consultar Redis)
       const userProfile = {
         id: req.user._id,
         username: req.user.username,
         email: req.user.email,
         roles: req.user.roles || [],
+        permissions: req.tokenPayload?.permissions || {},
         shopId: req.user.shopId,
         isActive: req.user.isActive,
         createdAt: req.user.createdAt,

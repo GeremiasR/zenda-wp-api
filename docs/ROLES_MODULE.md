@@ -4,9 +4,12 @@
 
 El módulo de roles permite gestionar los roles del sistema con sus permisos asociados. Cada rol define un conjunto de módulos y acciones que los usuarios con ese rol pueden realizar.
 
+El sistema utiliza un modelo RBAC (Role-Based Access Control) extendido donde los usuarios tienen roles asignados, y cada rol define permisos específicos sobre módulos del sistema. Los permisos se consolidan automáticamente cuando un usuario tiene múltiples roles.
+
 ## Base URL
 
 Todas las rutas del módulo de roles están bajo:
+
 ```
 /api/admin/roles
 ```
@@ -14,6 +17,7 @@ Todas las rutas del módulo de roles están bajo:
 ## Autenticación
 
 Todas las rutas requieren autenticación mediante el header:
+
 ```
 Authorization: Bearer <access_token>
 ```
@@ -21,6 +25,7 @@ Authorization: Bearer <access_token>
 ## Permisos Requeridos
 
 Las rutas requieren permisos específicos del módulo `role`:
+
 - `role.view` - Para listar y obtener roles
 - `role.create` - Para crear roles
 - `role.update` - Para actualizar roles
@@ -50,6 +55,7 @@ Las rutas requieren permisos específicos del módulo `role`:
 ### Módulos del Sistema
 
 Los módulos disponibles en el sistema son:
+
 - `user` - Gestión de usuarios
 - `role` - Gestión de roles
 - `shop` - Gestión de tiendas
@@ -61,6 +67,7 @@ Los módulos disponibles en el sistema son:
 ### Acciones Disponibles
 
 Las acciones estándar disponibles son:
+
 - `view` - Ver/listar recursos
 - `create` - Crear nuevos recursos
 - `update` - Actualizar recursos existentes
@@ -72,15 +79,19 @@ Las acciones estándar disponibles son:
 El sistema incluye los siguientes roles por defecto:
 
 **ADMIN** - Administrador
+
 - Acceso completo a todos los módulos con todas las acciones
 
 **SHOPADMIN** - Administrador de Tienda
+
 - Permisos limitados de gestión de usuarios, tiendas, flujos, pedidos, transacciones y WhatsApp
 
 **SHOPUSER** - Usuario de Tienda
+
 - Permisos de visualización y operaciones básicas sobre pedidos, transacciones y WhatsApp
 
 **CUSTOMER** - Cliente
+
 - Permisos de solo lectura sobre pedidos y transacciones
 
 ## Endpoints
@@ -94,9 +105,11 @@ Obtiene todos los roles del sistema.
 **Permisos:** `role.view`
 
 **Query Parameters:**
+
 - `includeInactive` (opcional, boolean): Si es `true`, incluye roles inactivos. Por defecto `false`.
 
 **Respuesta Exitosa (200):**
+
 ```json
 {
   "success": true,
@@ -124,9 +137,11 @@ Obtiene un rol específico por su ID.
 **Permisos:** `role.view`
 
 **Parámetros de URL:**
+
 - `id` (required, string): ID del rol
 
 **Respuesta Exitosa (200):**
+
 ```json
 {
   "success": true,
@@ -144,6 +159,7 @@ Obtiene un rol específico por su ID.
 ```
 
 **Errores:**
+
 - `404` - Rol no encontrado
 
 ### 3. Crear Rol
@@ -155,6 +171,7 @@ Crea un nuevo rol en el sistema.
 **Permisos:** `role.create`
 
 **Body:**
+
 ```json
 {
   "code": "string",           // Requerido. Código único del rol (se convierte a mayúsculas)
@@ -170,12 +187,14 @@ Crea un nuevo rol en el sistema.
 ```
 
 **Validaciones:**
+
 - `code` y `label` son requeridos
 - El `code` debe ser único en el sistema
 - Cada módulo debe tener al menos una acción
 - Los nombres de módulos y acciones deben ser strings válidos
 
 **Respuesta Exitosa (201):**
+
 ```json
 {
   "success": true,
@@ -193,6 +212,7 @@ Crea un nuevo rol en el sistema.
 ```
 
 **Errores:**
+
 - `400` - Datos de entrada inválidos (campos requeridos faltantes, estructura incorrecta de módulos)
 - `409` - Ya existe un rol con ese código
 
@@ -205,9 +225,11 @@ Actualiza un rol existente.
 **Permisos:** `role.update`
 
 **Parámetros de URL:**
+
 - `id` (required, string): ID del rol
 
 **Body:**
+
 ```json
 {
   "label": "string",           // Opcional. Nueva etiqueta
@@ -224,6 +246,7 @@ Actualiza un rol existente.
 **Nota:** El campo `code` no se puede actualizar después de crear el rol.
 
 **Respuesta Exitosa (200):**
+
 ```json
 {
   "success": true,
@@ -241,6 +264,7 @@ Actualiza un rol existente.
 ```
 
 **Errores:**
+
 - `400` - Datos de entrada inválidos
 - `404` - Rol no encontrado
 
@@ -253,9 +277,11 @@ Elimina un rol (soft delete - marca como inactivo).
 **Permisos:** `role.delete`
 
 **Parámetros de URL:**
+
 - `id` (required, string): ID del rol
 
 **Respuesta Exitosa (200):**
+
 ```json
 {
   "success": true,
@@ -264,6 +290,7 @@ Elimina un rol (soft delete - marca como inactivo).
 ```
 
 **Errores:**
+
 - `404` - Rol no encontrado
 
 **Nota:** Esta operación realiza un soft delete, marcando el rol como `isActive: false` en lugar de eliminarlo físicamente de la base de datos.
@@ -281,6 +308,7 @@ Todos los errores siguen el formato estándar:
 ```
 
 **Códigos de Estado Comunes:**
+
 - `200` - Operación exitosa
 - `201` - Recurso creado exitosamente
 - `400` - Solicitud inválida (datos faltantes o incorrectos)
@@ -289,6 +317,166 @@ Todos los errores siguen el formato estándar:
 - `404` - Recurso no encontrado
 - `409` - Conflicto (recurso duplicado)
 - `500` - Error interno del servidor
+
+## Autenticación y Permisos en el Frontend
+
+### Obtener Roles y Permisos del Usuario
+
+El sistema proporciona roles y permisos del usuario autenticado en dos endpoints principales:
+
+#### 1. Login (`POST /auth/login`)
+
+Al hacer login exitoso, la respuesta incluye información del usuario con sus roles y permisos:
+
+```json
+{
+  "success": true,
+  "message": "Login exitoso",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "abc123def456...",
+    "user": {
+      "id": "507f1f77bcf86cd799439011",
+      "email": "usuario@example.com",
+      "roles": ["ADMIN", "SHOPADMIN"],
+      "permissions": {
+        "user": ["view", "create", "update", "delete"],
+        "shop": ["view", "update"],
+        "role": ["view", "create"],
+        "flow": ["view", "create", "update"],
+        "orders": ["view", "create", "update", "delete"],
+        "transactions": ["view"],
+        "whatsapp": ["view", "create", "update"]
+      },
+      "shopId": "507f1f77bcf86cd799439012"
+    }
+  }
+}
+```
+
+#### 2. Perfil del Usuario (`GET /auth/me`)
+
+El endpoint `/auth/me` también incluye roles y permisos del usuario:
+
+```json
+{
+  "success": true,
+  "message": "Perfil obtenido exitosamente",
+  "data": {
+    "id": "507f1f77bcf86cd799439011",
+    "username": "usuario123",
+    "email": "usuario@example.com",
+    "roles": ["ADMIN"],
+    "permissions": {
+      "user": ["view", "create", "update", "delete", "manage"],
+      "role": ["view", "create", "update", "delete", "manage"],
+      "shop": ["view", "create", "update", "delete", "manage"],
+      "flow": ["view", "create", "update", "delete", "manage"],
+      "orders": ["view", "create", "update", "delete", "manage"],
+      "transactions": ["view", "create", "update", "delete", "manage"],
+      "whatsapp": ["view", "create", "update", "delete", "manage"]
+    },
+    "shopId": "507f1f77bcf86cd799439012",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+#### 3. Refresh Token (`POST /auth/refresh`)
+
+Al renovar el token, también se retorna información actualizada del usuario:
+
+```json
+{
+  "success": true,
+  "message": "Token renovado exitosamente",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "xyz789abc123...",
+    "user": {
+      "id": "507f1f77bcf86cd799439011",
+      "email": "usuario@example.com",
+      "roles": ["ADMIN"],
+      "permissions": {
+        "user": ["view", "create", "update", "delete", "manage"],
+        "role": ["view", "create", "update", "delete", "manage"]
+      },
+      "shopId": "507f1f77bcf86cd799439012"
+    }
+  }
+}
+```
+
+### Manejo de Rutas en el Frontend
+
+El frontend debe usar los permisos del usuario para:
+
+1. **Mostrar/Ocultar Módulos en el Menú:**
+
+   - Verificar si el usuario tiene acceso a un módulo consultando si existe la clave del módulo en `permissions`
+   - Solo mostrar módulos donde el usuario tenga al menos la acción `view`
+
+2. **Control de Acceso a Rutas:**
+
+   - Antes de navegar a una ruta, verificar si el usuario tiene el permiso necesario
+   - Por ejemplo: para acceder a `/admin/users`, el usuario debe tener `user.view` en sus permisos
+
+3. **Mostrar/Ocultar Botones de Acción:**
+   - Mostrar botón "Crear" solo si tiene `create` en ese módulo
+   - Mostrar botón "Editar" solo si tiene `update` en ese módulo
+   - Mostrar botón "Eliminar" solo si tiene `delete` en ese módulo
+
+### Ejemplos de Verificación de Permisos
+
+#### Verificar Acceso a un Módulo
+
+```javascript
+// Verificar si el usuario puede ver el módulo de usuarios
+const canViewUsers =
+  user.permissions.user?.includes("view") ||
+  user.permissions.user?.includes("manage");
+```
+
+#### Verificar Acceso a una Acción Específica
+
+```javascript
+// Verificar si el usuario puede crear roles
+const canCreateRoles =
+  user.permissions.role?.includes("create") ||
+  user.permissions.role?.includes("manage");
+```
+
+#### Verificar Acceso Completo (manage)
+
+```javascript
+// Verificar si el usuario tiene acceso completo a un módulo
+const hasFullAccess = user.permissions.user?.includes("manage");
+```
+
+### Estructura de Permisos
+
+Los permisos están organizados como un objeto donde:
+
+- **Clave**: Nombre del módulo (ej: `"user"`, `"shop"`, `"orders"`)
+- **Valor**: Array de acciones permitidas (ej: `["view", "create", "update"]`)
+
+**Acciones disponibles:**
+
+- `view` - Ver/listar recursos del módulo
+- `create` - Crear nuevos recursos
+- `update` - Actualizar recursos existentes
+- `delete` - Eliminar recursos
+- `manage` - Acceso completo (incluye todas las acciones anteriores)
+
+**Nota importante:** Si un usuario tiene `manage` en un módulo, tiene acceso a todas las acciones de ese módulo, independientemente de si tiene otras acciones específicas listadas.
+
+### Consistencia de Datos
+
+- Los permisos en la respuesta del login/refresh son los mismos que están en el JWT (decodificables)
+- Los permisos se actualizan automáticamente en cada login/refresh
+- Si un rol es modificado, los cambios se reflejarán en los usuarios la próxima vez que hagan login
 
 ## Notas de Implementación
 
@@ -306,3 +494,6 @@ Todos los errores siguen el formato estándar:
 
 7. **Filtrado:** Por defecto, solo se muestran roles activos. Para incluir roles inactivos en la lista, se debe pasar el parámetro `includeInactive=true`.
 
+8. **Optimización de Consultas Redis:** El sistema solo consulta Redis para acciones críticas (create, update, delete, manage). Para acciones de lectura (view), se usan los permisos del token directamente, optimizando el rendimiento.
+
+9. **Actualización en Tiempo Real:** Los permisos en el token JWT siempre reflejan el estado actual de los roles del usuario. No es necesario decodificar el token manualmente, ya que los permisos están disponibles directamente en las respuestas de login y `/me`.
